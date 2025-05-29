@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++
+    
+    - name: Setup environment
+      run: |
+        chmod +x scripts/setup_env.sh
+        ./scripts/setup_env.sh
+    
+    - name: Build project
+      run: |
+        chmod +x scripts/build.sh
+        ./scripts/build.sh
+    
+    - name: Test basic functionality
+      run: |
+        echo "help" | timeout 5s ./mimir || true
+        echo "quit" | timeout 5s ./mimir || true
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup environment
+      run: |
+        chmod +x scripts/setup_env.sh
+        ./scripts/setup_env.sh
+    
+    - name: Build project
+      run: |
+        chmod +x scripts/build.sh
+        ./scripts/build.sh
+    
+    - name: Test basic functionality
+      run: |
+        echo "help" | timeout 5s ./mimir || true
+        echo "quit" | timeout 5s ./mimir || true

@@ -1,0 +1,39 @@
+# Compiled binaries
+mimir
+*.exe
+
+# Object files
+*.o
+*.obj
+
+# Debug files
+*.dSYM/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build directories
+build/
+dist/
+
+# Session data (runtime generated)
+sessions/
+logs/
+
+# Config with sensitive data (keep template)
+config.local.yaml
+
+# Nix build results
+result
+result-*
+
+# Temporary files
+*.tmp
+*.temp
