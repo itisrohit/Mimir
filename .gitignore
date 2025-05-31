@@ -23,8 +23,8 @@ Thumbs.db
 logs/
 *.log
 
-# Documentation (during development)
-README.md
+# Documentation
+README.template.md
 
 # Build directories
 build/
