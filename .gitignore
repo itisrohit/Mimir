@@ -5,29 +5,32 @@ mimir
 # Object files
 *.o
 *.obj
-
-# Debug files
 *.dSYM/
+
+# Data directory (sessions and user data)
+.data/
+sessions/  # Legacy location
 
 # IDE files
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # OS files
 .DS_Store
 Thumbs.db
 
+# Logs
+logs/
+*.log
+
+# Documentation (during development)
+README.md
+
 # Build directories
 build/
 dist/
 
-# Session data (runtime generated)
-sessions/
-logs/
-
-# Config with sensitive data (keep template)
+# Config with sensitive data
 config.local.yaml
 
 # Nix build results

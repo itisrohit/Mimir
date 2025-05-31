@@ -1,8 +1,8 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -g
+CXXFLAGS = -std=c++17 -Wall -Wextra -g -stdlib=libc++
 TARGET = mimir
 SRCDIR = src
-SOURCES = $(SRCDIR)/main.cpp
+SOURCES = $(SRCDIR)/main.cpp $(SRCDIR)/session/SessionManager.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target
@@ -19,7 +19,7 @@ $(TARGET): $(OBJECTS)
 # Clean up build files
 clean:
 	rm -f $(OBJECTS) $(TARGET)
-	rm -rf session/
+	rm -rf .data/   
 
 # Run the program
 run: $(TARGET)

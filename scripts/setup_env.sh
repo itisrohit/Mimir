@@ -11,11 +11,13 @@ echo "✅ C++ compiler found: $(g++ --version | head -n1)"
 echo "✅ Make found: $(make --version | head -n1)"
 
 # Create necessary directories
-mkdir -p sessions
+mkdir -p .data/sessions   
 mkdir -p logs
+mkdir -p src/session
 
 # Set executable permissions for scripts
 chmod +x scripts/*.sh
 
 echo "✅ Development environment setup complete!"
+echo "📁 Data will be stored in ./.data/sessions/"
 echo "Run 'make' to build the project"
