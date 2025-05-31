@@ -1,16 +1,27 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -g -stdlib=libc++
+CXXFLAGS = -std=c++17 -Wall -Wextra -g
 TARGET = mimir
 SRCDIR = src
 SOURCES = $(SRCDIR)/main.cpp $(SRCDIR)/session/SessionManager.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
+
+# Platform-specific flags
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    # Linux uses libstdc++ by default, may need filesystem library
+    LDFLAGS += -lstdc++fs
+endif
+ifeq ($(UNAME_S),Darwin)
+    # macOS uses libc++
+    CXXFLAGS += -stdlib=libc++
+endif
 
 # Default target
 all: $(TARGET)
 
 # Build the target executable
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) -o $(TARGET)
+	$(CXX) $(OBJECTS) $(LDFLAGS) -o $(TARGET)
 
 # Compile source files
 %.o: %.cpp

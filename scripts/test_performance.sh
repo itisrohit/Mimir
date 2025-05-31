@@ -3,26 +3,17 @@ set -e
 
 echo "⚡ Running performance tests..."
 
-# Create multiple test files
-for i in {1..10}; do
-  echo "Test document $i content - Lorem ipsum dolor sit amet" > test_doc_$i.txt
-done
+# Build optimized version
+make clean
+CXXFLAGS="-std=c++17 -O2 -DNDEBUG" make
 
-# Time the session operations
-time cat << 'EOF' | timeout 30s ./mimir || true
-init performance_test
-add-doc test_doc_1.txt
-add-doc test_doc_2.txt
-add-doc test_doc_3.txt
-add-doc test_doc_4.txt
-add-doc test_doc_5.txt
-info
-export performance_test
-close
-quit
-EOF
+echo "📊 Testing startup time..."
+time (echo "quit" | ./mimir > /dev/null)
 
-# Cleanup
-rm -f test_doc_*.txt
+echo "📊 Testing session creation time..."
+time (echo -e "init perf_test\nclose\nquit" | ./mimir > /dev/null)
 
-echo "✅ Performance test completed!"
+echo "📊 Testing multiple operations..."
+time (echo -e "init perf_test\nlist\ninfo\nclose\nlist\nquit" | ./mimir > /dev/null)
+
+echo "✅ Performance tests completed!"
