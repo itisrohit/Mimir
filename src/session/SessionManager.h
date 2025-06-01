@@ -46,6 +46,11 @@ private:
     vector<DocumentChunk> currentDocChunks;
     vector<ChatMessage> currentChatHistory;
     
+    // Auto-save configuration
+    bool autoSaveEnabled = true;
+    bool autoSaveOnDocumentAdd = true;
+    bool autoSaveOnChatMessage = false;
+    
     // Helper methods
     string generateSessionId(const string& name);
     string getCurrentTimestamp();
@@ -71,6 +76,11 @@ private:
     bool parseMetadataFromJson(const string& json);
     bool parseChatHistoryFromJson(const string& json);
     bool parseDocumentChunksFromJson(const string& json);
+    
+    // Helper methods for selective saving
+    bool autoSaveIfEnabled(const string& operation = "");
+    bool saveEssentialData(const string& sessionId);  // Only metadata + doc chunks
+    bool saveAllData(const string& sessionId);        // Everything
 
 public:
     SessionManager(const string& basePath = "./sessions");
@@ -99,6 +109,13 @@ public:
                        const vector<string>& sourceChunks = {});
     vector<ChatMessage> getChatHistory() const;
     ChatMessage getLastMessage() const;
+    
+    // Auto-save configuration
+    void setAutoSave(bool enabled) { autoSaveEnabled = enabled; }
+    void setAutoSaveOnDocumentAdd(bool enabled) { autoSaveOnDocumentAdd = enabled; }
+    void setAutoSaveOnChatMessage(bool enabled) { autoSaveOnChatMessage = enabled; }
+    
+    bool isAutoSaveEnabled() const { return autoSaveEnabled; }
     
     // Utility
     bool exportSession(const string& sessionName, const string& format = "txt");

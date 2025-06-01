@@ -169,6 +169,12 @@ public:
         }
         else if (command == "info") {
             sessionManager.printSessionInfo();
+            // Show auto-save status
+            if (sessionManager.isAutoSaveEnabled()) {
+                cout << "💾 Auto-save: Enabled (documents saved immediately)\n";
+            } else {
+                cout << "💾 Auto-save: Disabled (manual save required)\n";
+            }
         }
         else if (command == "export") {
             if (tokens.size() < 2) {

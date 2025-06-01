@@ -215,18 +215,11 @@ bool SessionManager::saveCurrentSession() {
 
     string sessionId = generateSessionId(currentSessionName);
     
-    // Update metadata timestamp
-    currentMetadata.last_modified = getCurrentTimestamp();
-    
-    // Save all components
-    bool success = true;
-    success &= saveMetadata(sessionId);
-    success &= saveChatHistory(sessionId);
-    success &= saveDocumentChunks(sessionId);
-    success &= saveFaissIndex(sessionId);  // Updated method name
+    // 🎯 HYBRID: Always save everything on manual save
+    bool success = saveAllData(sessionId);
     
     if (success) {
-        cout << "✅ Session saved successfully.\n";
+        cout << "✅ Session saved completely.\n";
     } else {
         cout << "❌ Failed to save some session components.\n";
     }
@@ -281,7 +274,7 @@ bool SessionManager::addDocument(const string &filePath)
         return false;
     }
 
-    // Process document using the new document processor
+    // Process document using the document processor
     DocumentProcessor processor;
     vector<TextChunk> textChunks = processor.processDocument(filePath);
     
@@ -306,8 +299,17 @@ bool SessionManager::addDocument(const string &filePath)
     // Add to metadata
     currentMetadata.documents.push_back(filePath);
     currentMetadata.total_chunks = currentDocChunks.size();
+    currentMetadata.last_modified = getCurrentTimestamp();
 
-    cout << "✅ Document '" << filePath << "' processed into " << textChunks.size() << " chunks.\n";
+    // 🎯 HYBRID AUTO-SAVE: Save immediately for better UX
+    if (autoSaveIfEnabled("document_add")) {
+        cout << "✅ Document '" << filePath << "' processed into " << textChunks.size() 
+             << " chunks and saved immediately.\n";
+    } else {
+        cout << "✅ Document '" << filePath << "' processed into " << textChunks.size() 
+             << " chunks (will save on session close).\n";
+    }
+    
     return true;
 }
 
@@ -337,6 +339,10 @@ bool SessionManager::addChatMessage(const string& question, const string& answer
     
     currentChatHistory.push_back(message);
     currentMetadata.total_messages = currentChatHistory.size();
+    currentMetadata.last_modified = getCurrentTimestamp();
+    
+    // 🎯 HYBRID: Chat messages saved in batch (more efficient)
+    autoSaveIfEnabled("chat_message");
     
     return true;
 }
@@ -370,6 +376,52 @@ void SessionManager::printSessionInfo() const {
         cout << "Description: " << currentMetadata.description << "\n";
     }
     cout << "\n";
+}
+
+// Add after the constructor around line 130
+bool SessionManager::autoSaveIfEnabled(const string& operation) {
+    if (!autoSaveEnabled || !hasActiveSession()) {
+        return true;  // Nothing to save or saving disabled
+    }
+    
+    string sessionId = generateSessionId(currentSessionName);
+    
+    // Different save strategies based on operation
+    if (operation == "document_add" && autoSaveOnDocumentAdd) {
+        return saveEssentialData(sessionId);
+    } else if (operation == "chat_message" && autoSaveOnChatMessage) {
+        return saveEssentialData(sessionId);
+    }
+    
+    return true;  // No auto-save needed for this operation
+}
+
+bool SessionManager::saveEssentialData(const string& sessionId) {
+    // Save only the essential data that users expect to see immediately
+    currentMetadata.last_modified = getCurrentTimestamp();
+    
+    bool success = true;
+    success &= saveMetadata(sessionId);
+    success &= saveDocumentChunks(sessionId);
+    
+    if (!success) {
+        cout << "⚠️  Warning: Failed to auto-save session data\n";
+    }
+    
+    return success;
+}
+
+bool SessionManager::saveAllData(const string& sessionId) {
+    // Save everything (used for manual saves and session close)
+    currentMetadata.last_modified = getCurrentTimestamp();
+    
+    bool success = true;
+    success &= saveMetadata(sessionId);
+    success &= saveChatHistory(sessionId);
+    success &= saveDocumentChunks(sessionId);
+    success &= saveFaissIndex(sessionId);
+    
+    return success;
 }
 
 // Private helper methods
@@ -725,8 +777,15 @@ bool SessionManager::exportSession(const string& sessionName, const string& form
 
 void SessionManager::closeSession() {
     if (hasActiveSession()) {
-        // Save current session before closing
-        saveCurrentSession();
+        string sessionName = currentSessionName;
+        
+        // 🎯 HYBRID: Save everything on close (final save)
+        string sessionId = generateSessionId(currentSessionName);
+        if (saveAllData(sessionId)) {
+            cout << "✅ Session '" << sessionName << "' saved completely.\n";
+        } else {
+            cout << "⚠️  Session '" << sessionName << "' closed with some save errors.\n";
+        }
         
         // Clear current session state
         currentSessionName.clear();
