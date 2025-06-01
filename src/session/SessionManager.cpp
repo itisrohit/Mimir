@@ -94,7 +94,7 @@ SessionManager::SessionManager(const string &basePath)
     } else {
         baseSessionPath = basePath;
     }
-
+    
     // Create base session directory if it doesn't exist
     if (!path_exists(baseSessionPath))
     {

@@ -19,8 +19,8 @@ public:
             cout << "⚠️  Using default configuration\n";
         }
         
-        // Initialize session manager with config paths
-        sessionManager = SessionManager();
+        // Initialize session manager with default path (will use config)
+        sessionManager = SessionManager("");  // Empty string = use config path
     }
 
     void printWelcome() {
