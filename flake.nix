@@ -11,6 +11,21 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
+        # Platform-specific packages
+        platformPackages = with pkgs; [
+          # Core development tools (work everywhere)
+          gcc
+          gnumake
+          gdb
+          pkg-config
+          coreutils
+          git
+          vim
+        ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+          # Linux-only packages
+          valgrind
+        ];
+        
         mimir = pkgs.stdenv.mkDerivation {
           pname = "mimir";
           version = "1.0.0";
@@ -61,28 +76,18 @@
         };
         
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            # Development tools
-            gcc
-            gnumake
-            gdb
-            valgrind
-            pkg-config
-            
+          buildInputs = platformPackages ++ (with pkgs; [
             # Future libraries (for when you're ready)
             # faiss
             # curl
             # nlohmann_json
             # sqlite
-            
-            # Development utilities
-            coreutils  # For timeout command
-            git
-            vim
-          ];
+          ]);
           
           shellHook = ''
             echo "🚀 Welcome to Mimir development environment!"
+            echo "Platform: ${system}"
+            echo ""
             echo "Available commands:"
             echo "  make        - Build the project"
             echo "  make run    - Build and run"
@@ -91,6 +96,9 @@
             echo "Tools available:"
             echo "  gcc: $(gcc --version | head -n1)"
             echo "  make: $(make --version | head -n1)"
+            ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+            echo "  valgrind: $(valgrind --version | head -n1)"
+            ''}
             echo ""
           '';
         };
