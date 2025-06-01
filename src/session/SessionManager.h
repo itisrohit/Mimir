@@ -56,10 +56,12 @@ private:
     bool saveMetadata(const string& sessionId);
     bool saveChatHistory(const string& sessionId);
     bool saveDocumentChunks(const string& sessionId);
+    bool saveFaissIndex(const string& sessionId);        
     
     bool loadMetadata(const string& sessionId);
     bool loadChatHistory(const string& sessionId);
     bool loadDocumentChunks(const string& sessionId);
+    bool loadFaissIndex(const string& sessionId);       
     
     // JSON helpers
     string metadataToJson();

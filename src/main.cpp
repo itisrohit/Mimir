@@ -3,6 +3,7 @@
 #include <vector>
 #include <sstream>
 #include "session/SessionManager.h"
+#include "config/ConfigManager.h"
 
 using namespace std;
 
@@ -11,7 +12,16 @@ private:
     SessionManager sessionManager;
 
 public:
-    MimirCLI() : sessionManager("./.data/sessions/") {}
+    MimirCLI() {
+        // Load configuration
+        auto& config = ConfigManager::getInstance();
+        if (!config.loadConfig("config.yaml")) {
+            cout << "⚠️  Using default configuration\n";
+        }
+        
+        // Initialize session manager with config paths
+        sessionManager = SessionManager();
+    }
 
     void printWelcome() {
         cout << "\n";
@@ -36,12 +46,14 @@ public:
         cout << "Available Commands:\n";
         cout << "  init <session_name>     - Initialize a new session\n";
         cout << "  load <session_name>     - Load an existing session\n";
-        cout << "  delete <session_name>   - Delete a session (with confirmation)\n";
+        cout << "  close                   - Close current session\n";
+        cout << "  delete <session_name>   - Delete a session\n";
         cout << "  add-doc <file_path>     - Add document to current session\n";
         cout << "  query <question>        - Query documents in current session\n";
         cout << "  list                    - List all sessions\n";
         cout << "  info                    - Show current session info\n";
         cout << "  export <session_name>   - Export session data\n";
+        cout << "  config [show|reload]    - Configuration management\n";
         cout << "  help                    - Show this help message\n";
         cout << "  quit/exit               - Exit application\n";
         cout << "\n";
@@ -164,6 +176,26 @@ public:
                 return;
             }
             sessionManager.exportSession(tokens[1]);
+        }
+        else if (command == "config") {
+            if (tokens.size() > 1) {
+                if (tokens[1] == "show") {
+                    ConfigManager::getInstance().printConfig();
+                } else if (tokens[1] == "reload") {
+                    auto& config = ConfigManager::getInstance();
+                    if (config.loadConfig("config.yaml")) {
+                        cout << "✅ Configuration reloaded\n";
+                    } else {
+                        cout << "❌ Failed to reload configuration\n";
+                    }
+                } else if (tokens[1] == "set" && tokens.size() >= 4) {
+                    // config set section key value
+                    // TODO: Implement runtime config changes
+                    cout << "⚠️  Runtime config changes not yet implemented\n";
+                }
+            } else {
+                cout << "Usage: config [show|reload|set]\n";
+            }
         }
         else {
             cout << "Unknown command: " << command << "\n";

@@ -13,7 +13,6 @@ echo "✅ Make found: $(make --version | head -n1)"
 # Create necessary directories
 mkdir -p .data/sessions   
 mkdir -p logs
-mkdir -p src/session
 
 # Set executable permissions for scripts
 chmod +x scripts/*.sh

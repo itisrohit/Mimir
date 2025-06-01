@@ -9,6 +9,8 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <cerrno> 
+#include "../document_processor/Chunker.h"
+#include "../config/ConfigManager.h"
 
 using namespace std;
 
@@ -84,8 +86,14 @@ bool remove_directory_recursive(const string& path) {
 }
 
 SessionManager::SessionManager(const string &basePath)
-    : baseSessionPath(basePath)
 {
+    // Use config if basePath is empty, otherwise use provided path
+    if (basePath.empty()) {
+        auto& config = ConfigManager::getInstance();
+        baseSessionPath = config.getPathsConfig().sessions_dir;
+    } else {
+        baseSessionPath = basePath;
+    }
 
     // Create base session directory if it doesn't exist
     if (!path_exists(baseSessionPath))
@@ -199,19 +207,31 @@ bool SessionManager::deleteSession(const string &name)
     return true;
 }
 
-bool SessionManager::saveCurrentSession()
-{
-    if (!hasActiveSession())
-    {
+bool SessionManager::saveCurrentSession() {
+    if (currentSessionName.empty()) {
+        cout << "❌ No active session to save.\n";
         return false;
     }
 
     string sessionId = generateSessionId(currentSessionName);
+    
+    // Update metadata timestamp
     currentMetadata.last_modified = getCurrentTimestamp();
-
-    return saveMetadata(sessionId) &&
-           saveChatHistory(sessionId) &&
-           saveDocumentChunks(sessionId);
+    
+    // Save all components
+    bool success = true;
+    success &= saveMetadata(sessionId);
+    success &= saveChatHistory(sessionId);
+    success &= saveDocumentChunks(sessionId);
+    success &= saveFaissIndex(sessionId);  // Updated method name
+    
+    if (success) {
+        cout << "✅ Session saved successfully.\n";
+    } else {
+        cout << "❌ Failed to save some session components.\n";
+    }
+    
+    return success;
 }
 
 vector<string> SessionManager::listSessions()
@@ -247,7 +267,7 @@ bool SessionManager::addDocument(const string &filePath)
         return false;
     }
 
-    if (!path_exists(filePath))  // Changed from fs::exists
+    if (!path_exists(filePath))
     {
         cout << "❌ File '" << filePath << "' does not exist.\n";
         return false;
@@ -261,23 +281,33 @@ bool SessionManager::addDocument(const string &filePath)
         return false;
     }
 
-    // TODO: Implement actual document processing and chunking logic
-    // For now, just adding to metadata
-    currentMetadata.documents.push_back(filePath);
-
-    // Create dummy chunks for demonstration
-    DocumentChunk chunk;
-    chunk.id = generateUniqueId();
-    chunk.content = "Dummy content from " + filePath;
-    chunk.source_file = filePath;
-    chunk.chunk_index = currentDocChunks.size();
-    chunk.start_position = 0;
-    chunk.end_position = chunk.content.length();
+    // Process document using the new document processor
+    DocumentProcessor processor;
+    vector<TextChunk> textChunks = processor.processDocument(filePath);
     
-    currentDocChunks.push_back(chunk);
+    if (textChunks.empty()) {
+        cout << "❌ Failed to process document or document is empty.\n";
+        return false;
+    }
+
+    // Convert TextChunk to DocumentChunk and add to session
+    for (const auto& textChunk : textChunks) {
+        DocumentChunk chunk;
+        chunk.id = textChunk.id;
+        chunk.content = textChunk.content;
+        chunk.source_file = textChunk.source_file;
+        chunk.chunk_index = textChunk.chunk_index;
+        chunk.start_position = textChunk.start_position;
+        chunk.end_position = textChunk.end_position;
+        
+        currentDocChunks.push_back(chunk);
+    }
+
+    // Add to metadata
+    currentMetadata.documents.push_back(filePath);
     currentMetadata.total_chunks = currentDocChunks.size();
 
-    cout << "✅ Document '" << filePath << "' added to session.\n";
+    cout << "✅ Document '" << filePath << "' processed into " << textChunks.size() << " chunks.\n";
     return true;
 }
 
@@ -423,6 +453,23 @@ bool SessionManager::saveDocumentChunks(const string& sessionId) {
     return true;
 }
 
+bool SessionManager::saveFaissIndex(const string& sessionId) {
+    string filePath = baseSessionPath + "/" + sessionId + "/faiss_index.bin";
+    
+    // TODO: Implement FAISS index saving
+    // For now, create an empty file as placeholder
+    ofstream file(filePath, ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    // Placeholder: Write a simple header to indicate this is a FAISS index file
+    string header = "FAISS_INDEX_V1";
+    file.write(header.c_str(), header.length());
+    file.close();
+    return true;
+}
+
 bool SessionManager::loadMetadata(const string& sessionId) {
     string filePath = baseSessionPath + "/" + sessionId + "/metadata.json";
     ifstream file(filePath);
@@ -472,28 +519,56 @@ bool SessionManager::loadDocumentChunks(const string& sessionId) {
     return parseDocumentChunksFromJson(content);
 }
 
+bool SessionManager::loadFaissIndex(const string& sessionId) {
+    string filePath = baseSessionPath + "/" + sessionId + "/faiss_index.bin";
+    
+    if (!path_exists(filePath)) {
+        // Index file might not exist for sessions without documents
+        return true;
+    }
+    
+    // TODO: Implement FAISS index loading
+    // For now, just verify the file exists and has the header
+    ifstream file(filePath, ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    string header(14, '\0');  // "FAISS_INDEX_V1" length
+    file.read(&header[0], 14);
+    file.close();
+    
+    return header == "FAISS_INDEX_V1";
+}
+
 bool SessionManager::loadSession(const string& name) {
     if (sessionCache.find(name) == sessionCache.end()) {
         cout << "❌ Session '" << name << "' not found.\n";
         return false;
     }
-    
-    string sessionId = generateSessionId(name);
-    
-    // Load session data
-    if (!loadMetadata(sessionId) || 
-        !loadChatHistory(sessionId) || 
-        !loadDocumentChunks(sessionId)) {
-        cout << "❌ Failed to load session data.\n";
-        return false;
+
+    // Save current session if one is active
+    if (hasActiveSession()) {
+        saveCurrentSession();
     }
-    
-    currentSessionName = name;
-    // Update session cache with loaded metadata
-    sessionCache[name] = currentMetadata;
-    
-    cout << "✅ Session '" << name << "' loaded successfully.\n";
-    return true;
+
+    string sessionId = generateSessionId(name);
+
+    // Load all session components
+    bool success = true;
+    success &= loadMetadata(sessionId);
+    success &= loadChatHistory(sessionId);
+    success &= loadDocumentChunks(sessionId);
+    success &= loadFaissIndex(sessionId);  // Updated method name
+
+    if (success) {
+        currentSessionName = name;
+        cout << "✅ Session '" << name << "' loaded successfully.\n";
+    } else {
+        cout << "❌ Failed to load session '" << name << "'.\n";
+    }
+
+    return success;
 }
 
 // Simple JSON serialization (basic implementation, can be improved)

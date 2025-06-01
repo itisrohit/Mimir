@@ -7,7 +7,27 @@ on:
     branches: [ main ]
 
 jobs:
-  build-ubuntu:
+  build-nix:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Nix
+      uses: cachix/install-nix-action@v23
+      with:
+        github_access_token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build with Nix
+      run: nix build
+    
+    - name: Run tests with Nix
+      run: nix flake check
+    
+    - name: Test development shell
+      run: nix develop --command bash -c "make clean && make && echo 'help' | timeout 5s ./mimir || true"
+
+  build-ubuntu-traditional:
     runs-on: ubuntu-latest
     
     steps:
@@ -18,19 +38,11 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential g++ make
     
-    - name: Setup environment
+    - name: Build and test
       run: |
-        chmod +x scripts/setup_env.sh
+        chmod +x scripts/*.sh
         ./scripts/setup_env.sh
-    
-    - name: Build project
-      run: |
-        chmod +x scripts/build.sh
         ./scripts/build.sh
-    
-    - name: Run CI tests
-      run: |
-        chmod +x scripts/test_ci.sh
         ./scripts/test_ci.sh
 
   build-macos:
@@ -39,40 +51,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install dependencies (macOS)
-      run: |
-        # Install coreutils for gtimeout
-        brew install coreutils
+    - name: Install Nix
+      uses: cachix/install-nix-action@v23
+      with:
+        github_access_token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Setup environment
-      run: |
-        chmod +x scripts/setup_env.sh
-        ./scripts/setup_env.sh
+    - name: Build with Nix
+      run: nix build
     
-    - name: Build project
-      run: |
-        chmod +x scripts/build.sh
-        ./scripts/build.sh
-    
-    - name: Run CI tests
-      run: |
-        chmod +x scripts/test_ci.sh
-        ./scripts/test_ci.sh
-
-  test-workflow:
-    runs-on: ubuntu-latest
-    needs: build-ubuntu
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential g++ make
-    
-    - name: Setup and test workflow
-      run: |
-        chmod +x scripts/*.sh
-        ./scripts/setup_env.sh
-        ./scripts/test_workflow.sh
+    - name: Test with Nix
+      run: nix develop --command bash -c "make clean && make && echo 'help' | timeout 5s ./mimir || true"

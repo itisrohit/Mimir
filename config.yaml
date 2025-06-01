@@ -1,0 +1,133 @@
+# Mimir Configuration File
+
+# Application Settings
+app:
+  name: "Mimir"
+  version: "1.0.0"
+  debug: false
+
+# File paths and directories
+paths:
+  sessions_dir: "./.data/sessions"
+  temp_dir: "./.data/temp"
+  logs_dir: "./.data/logs"
+  exports_dir: "./.data/exports"
+
+# Document Processing Configuration
+document_processing:
+  # Chunk settings
+  chunk_size: 1000              # Maximum characters per chunk
+  chunk_overlap: 200            # Overlap between chunks to preserve context
+  preserve_sentences: true      # Try to break at sentence boundaries
+  preserve_paragraphs: true     # Try to break at paragraph boundaries
+  
+  # File type settings
+  max_file_size_mb: 100         # Maximum file size to process
+  supported_types: ["txt", "md", "pdf", "csv", "json"]
+  
+  # Text cleaning
+  remove_extra_whitespace: true
+  normalize_unicode: true
+  
+  # Separators for chunking (in order of preference)
+  separators: ["\n\n", "\n", ". ", "! ", "? ", " "]
+
+# Embedding Configuration
+embedding:
+  provider: "local"             # Options: "local", "openai", "groq", "huggingface"
+  model: "sentence-transformers/all-MiniLM-L6-v2"  # Local model path or API model name
+  vector_dimension: 384         # Dimension of embeddings (model-specific)
+  batch_size: 32               # Batch size for embedding generation
+  
+  # Provider-specific settings
+  openai:
+    api_key: ""                 # Set via environment variable OPENAI_API_KEY
+    model: "text-embedding-ada-002"
+    dimension: 1536
+  
+  groq:
+    api_key: ""                 # Set via environment variable GROQ_API_KEY
+    model: "mixtral-8x7b-32768"
+  
+  huggingface:
+    api_key: ""                 # Set via environment variable HF_API_KEY
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+
+# Vector Database Configuration
+vector_db:
+  type: "faiss"                 # Options: "faiss", "qdrant", "sqlite_vss"
+  
+  # FAISS settings
+  faiss:
+    index_type: "IndexFlatIP"   # Options: "IndexFlatIP", "IndexFlatL2", "IndexIVFFlat"
+    metric: "inner_product"     # Options: "inner_product", "l2"
+    nlist: 100                  # For IVF indexes
+    
+  # Qdrant settings (for future use)
+  qdrant:
+    host: "localhost"
+    port: 6333
+    collection_name: "mimir_vectors"
+    
+  # SQLite with vector search (for future use)
+  sqlite_vss:
+    db_path: "./.data/vectors.db"
+
+# Chat/Query Configuration
+chat:
+  provider: "local"             # Options: "local", "openai", "groq", "ollama"
+  model: "llama2"               # Model name
+  max_tokens: 2048              # Maximum response length
+  temperature: 0.7              # Response creativity (0.0 - 1.0)
+  
+  # Context settings
+  max_context_chunks: 5         # Number of relevant chunks to include
+  similarity_threshold: 0.7     # Minimum similarity score for chunk inclusion
+  
+  # Provider-specific settings
+  openai:
+    api_key: ""                 # Set via environment variable
+    model: "gpt-3.5-turbo"
+    max_tokens: 2048
+    temperature: 0.7
+  
+  groq:
+    api_key: ""
+    model: "mixtral-8x7b-32768"
+    max_tokens: 2048
+    temperature: 0.7
+  
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "llama2"
+    keep_alive: "5m"
+
+# Logging Configuration
+logging:
+  level: "INFO"                 # Options: "DEBUG", "INFO", "WARN", "ERROR"
+  file_logging: true
+  console_logging: true
+  max_log_size_mb: 10
+  max_log_files: 5
+
+# Performance Settings
+performance:
+  enable_caching: true
+  cache_size_mb: 256
+  parallel_processing: true
+  max_threads: 4
+
+# Export Settings
+export:
+  default_format: "txt"         # Options: "txt", "json", "markdown", "csv"
+  include_metadata: true
+  include_timestamps: true
+  include_sources: true
+
+# Session Settings
+session:
+  auto_save: true               # Auto-save sessions on changes
+  save_interval_minutes: 5      # Auto-save interval
+  max_sessions: 100             # Maximum number of sessions to keep
+  cleanup_old_sessions: false   # Automatically clean up old sessions
+  max_session_age_days: 30      # Age after which sessions are considered old
