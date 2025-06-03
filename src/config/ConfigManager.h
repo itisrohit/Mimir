@@ -32,6 +32,10 @@ struct DocumentProcessingConfig {
     bool remove_extra_whitespace = true;
     bool normalize_unicode = true;
     vector<string> separators = {"\n\n", "\n", ". ", "! ", "? ", " "};
+    
+    // ✅ KEEP THESE FIELDS:
+    bool clean_text = true;
+    bool preserve_formatting = false;
 };
 
 struct EmbeddingConfig {

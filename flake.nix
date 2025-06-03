@@ -39,12 +39,15 @@
           ];
           
           buildInputs = with pkgs; [
-            # Current dependencies
-            # Future dependencies (commented for now)
-            # faiss
-            # curl
-            # nlohmann_json
-            # sqlite
+            # Existing dependencies
+            gcc
+            gnumake
+            
+            # 🆕 ADD PDF PROCESSING DEPENDENCIES:
+            poppler_utils  # Provides pdftotext, pdfinfo, pdftoppm
+            tesseract      # OCR for scanned PDFs
+            imagemagick    # Image processing
+            ghostscript    # PDF manipulation
           ];
           
           # Set environment variables to ensure GCC is used
@@ -68,7 +71,7 @@
           
           meta = with pkgs.lib; {
             description = "The smartest way to talk to your data";
-            homepage = "https://github.com/YOUR_USERNAME/Mimir";
+            homepage = "https://github.com/itisrohit/Mimir";
             license = licenses.mit;
             platforms = platforms.unix;
             maintainers = [ ];
@@ -83,6 +86,12 @@
         
         devShells.default = pkgs.mkShell {
           buildInputs = platformPackages ++ (with pkgs; [
+            # 🆕 ADD PDF PROCESSING TOOLS TO DEV SHELL:
+            poppler_utils  # Provides pdftotext, pdfinfo, pdftoppm
+            tesseract      # OCR for scanned PDFs
+            imagemagick    # Image processing
+            ghostscript    # PDF manipulation
+            
             # Future libraries (for when you're ready)
             # faiss
             # curl
@@ -108,6 +117,10 @@
             ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
             echo "  valgrind: $(valgrind --version | head -n1)"
             ''}
+            echo ""
+            echo "📄 PDF Tools available:"
+            echo "  pdftotext: $(pdftotext -v 2>&1 | head -n1 || echo 'Available')"
+            echo "  tesseract: $(tesseract --version 2>&1 | head -n1 || echo 'Available')"
             echo ""
           '';
         };

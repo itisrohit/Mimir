@@ -55,6 +55,7 @@ private:
     string generateSessionId(const string& name);
     string getCurrentTimestamp();
     string generateUniqueId();
+    bool ensureBaseDirectoryExists();  // 🆕 ADD THIS
     
     // File operations
     bool createSessionDirectory(const string& sessionId);
@@ -83,7 +84,7 @@ private:
     bool saveAllData(const string& sessionId);        // Everything
 
 public:
-    SessionManager(const string& basePath = "./sessions");
+    SessionManager(const string& basePath = "");
     ~SessionManager();
     
     // Session lifecycle

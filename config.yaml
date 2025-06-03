@@ -18,19 +18,28 @@ document_processing:
   # Chunk settings
   chunk_size: 1000              # Maximum characters per chunk
   chunk_overlap: 200            # Overlap between chunks to preserve context
+  clean_text: true
+  preserve_formatting: false
+  remove_extra_whitespace: true
   preserve_sentences: true      # Try to break at sentence boundaries
   preserve_paragraphs: true     # Try to break at paragraph boundaries
-  
-  # File type settings
   max_file_size_mb: 100         # Maximum file size to process
-  supported_types: ["txt", "md", "pdf", "csv", "json"]
   
-  # Text cleaning
-  remove_extra_whitespace: true
-  normalize_unicode: true
-  
-  # Separators for chunking (in order of preference)
-  separators: ["\n\n", "\n", ". ", "! ", "? ", " "]
+  # Enhanced separators for better chunking
+  separators:
+    - ". "      # Sentence ending with space
+    - "! "      # Exclamation with space  
+    - "? "      # Question with space
+    - ".\n"     # Sentence ending with newline
+    - "!\n"     # Exclamation with newline
+    - "?\n"     # Question with newline
+    - "\n\n"    # Paragraph break
+    - "\n### "  # Markdown header
+    - "\n## "   # Markdown header
+    - "\n# "    # Markdown header
+    - "\n* "    # Bullet point
+    - "\n- "    # Bullet point
+    - "\n"      # Simple newline (last resort)
 
 # Embedding Configuration
 embedding:

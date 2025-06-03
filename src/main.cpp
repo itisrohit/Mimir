@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <regex>
 #include "session/SessionManager.h"
 #include "config/ConfigManager.h"
 
@@ -136,9 +137,34 @@ public:
         else if (command == "add-doc") {
             if (tokens.size() < 2) {
                 cout << "Usage: add-doc <file_path>\n";
+                cout << "For files with spaces:\n";
+                cout << "  • Use quotes: add-doc \"file name.pdf\"\n";
+                cout << "  • Or escape spaces: add-doc file\\ name.pdf\n";
                 return;
             }
-            sessionManager.addDocument(tokens[1]);
+            
+            // Reconstruct the full file path from remaining tokens
+            string filePath;
+            for (size_t i = 1; i < tokens.size(); ++i) {
+                if (i > 1) filePath += " ";
+                filePath += tokens[i];
+            }
+            
+            // Clean up escaped characters and quotes
+            if (!filePath.empty()) {
+                // Remove surrounding quotes
+                if ((filePath.front() == '"' && filePath.back() == '"') ||
+                    (filePath.front() == '\'' && filePath.back() == '\'')) {
+                    filePath = filePath.substr(1, filePath.length() - 2);
+                }
+                
+                // Handle escaped spaces
+                regex escapedSpace("\\\\ ");
+                filePath = regex_replace(filePath, escapedSpace, " ");
+            }
+            
+            cout << "📁 Processing file: " << filePath << "\n";
+            sessionManager.addDocument(filePath);
         }
         else if (command == "query") {
             if (tokens.size() < 2) {

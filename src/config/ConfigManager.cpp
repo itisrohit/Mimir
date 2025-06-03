@@ -101,6 +101,24 @@ void ConfigManager::applyConfig(const string& section, const string& subsection,
         else if (key == "max_file_size_mb") document_processing.max_file_size_mb = stoul(value);
         else if (key == "remove_extra_whitespace") document_processing.remove_extra_whitespace = (value == "true");
         else if (key == "normalize_unicode") document_processing.normalize_unicode = (value == "true");
+        
+        // 🆕 ADD THESE MISSING FIELD HANDLERS:
+        else if (key == "clean_text") document_processing.clean_text = (value == "true");
+        else if (key == "preserve_formatting") document_processing.preserve_formatting = (value == "true");
+        
+        // 🆕 ADD SEPARATORS HANDLING (if you want to load from config):
+        else if (key == "separators") {
+            // Simple separator parsing - split by comma
+            document_processing.separators.clear();
+            vector<string> seps = split(value, ',');
+            for (const string& sep : seps) {
+                string cleanSep = trim(sep);
+                // Handle escaped characters
+                if (cleanSep == "\\n") cleanSep = "\n";
+                else if (cleanSep == "\\t") cleanSep = "\t";
+                document_processing.separators.push_back(cleanSep);
+            }
+        }
     }
     else if (section == "embedding") {
         if (subsection.empty()) {

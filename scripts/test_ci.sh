@@ -81,12 +81,15 @@ echo -e "init test_session_check\ninfo\nclose\nquit" | run_with_timeout 10 ./mim
 if grep -q "created successfully" session_test.log; then
     echo "✅ Session creation works"
     
-    # Check if session directory was created (could be .data, sessions, or config-specified)
-    if [ -d ".data" ] || [ -d "sessions" ] || find . -name "*test_session_check*" -type d 2>/dev/null | head -1 | grep -q .; then
-        echo "✅ Session directory created successfully"
-        ls -la .data/ 2>/dev/null || ls -la sessions/ 2>/dev/null || find . -name "*test_session_check*" -type d -exec ls -la {} \; 2>/dev/null || true
+    # Check ONLY for .data directory (config-specified path)
+    if [ -d ".data" ]; then
+        echo "✅ Session directory created successfully in .data/"
+        ls -la .data/sessions/ 2>/dev/null || true
     else
-        echo "⚠️  Session created but directory structure varies by platform"
+        echo "❌ Expected .data directory not found"
+        echo "Debug: Current directory contents:"
+        ls -la
+        exit 1
     fi
 else
     echo "⚠️  Session test completed (output varies by platform)"
@@ -103,37 +106,29 @@ echo "# Test document for hybrid auto-save" > test_hybrid_doc.txt
 
 echo -e "init test_hybrid\nadd-doc test_hybrid_doc.txt\ninfo\nquit" | run_with_timeout 15 ./mimir > hybrid_test.log 2>&1
 
-# Check if files were created immediately after document add
+# Check if files were created immediately in .data/sessions/
 SESSION_FOUND=false
 if [ -d ".data" ]; then
     if find .data -name "metadata.json" -o -name "doc_chunks.json" 2>/dev/null | grep -q .; then
-        echo "✅ Hybrid auto-save working - essential files created immediately"
+        echo "✅ Hybrid auto-save working - essential files created immediately in .data/"
         SESSION_FOUND=true
-    fi
-elif [ -d "sessions" ]; then
-    if find sessions -name "metadata.json" -o -name "doc_chunks.json" 2>/dev/null | grep -q .; then
-        echo "✅ Hybrid auto-save working - essential files created immediately" 
-        SESSION_FOUND=true
+        
+        # Show what was created
+        find .data -name "*.json" -exec ls -la {} \; 2>/dev/null || true
     fi
 fi
 
-if [ "$SESSION_FOUND" = true ]; then
-    # Check that chat history is NOT created yet (batch save behavior)
-    if ! find . -name "chat_history.json" 2>/dev/null | grep -q .; then
-        echo "✅ Chat history correctly batched (not saved immediately)"
-    else
-        echo "⚠️  Chat history found (unexpected for hybrid auto-save)"
-    fi
-    
-    ls -la .data/ 2>/dev/null || ls -la sessions/ 2>/dev/null || true
-else
-    echo "❌ Hybrid auto-save not working - no session files found"
+if [ "$SESSION_FOUND" = false ]; then
+    echo "❌ Hybrid auto-save not working - no session files found in .data/"
+    echo "Debug: Directory contents:"
+    ls -la
+    echo "Test output:"
     head -10 hybrid_test.log 2>/dev/null || echo "No test log found"
     exit 1
 fi
 
 # Clean up test files
 rm -f test_hybrid_doc.txt hybrid_test.log
-rm -rf .data/ sessions/ 2>/dev/null || true
+rm -rf .data/ 2>/dev/null || true
 
 echo "✅ All CI tests passed!"

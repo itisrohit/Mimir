@@ -87,48 +87,42 @@ bool remove_directory_recursive(const string& path) {
 
 SessionManager::SessionManager(const string &basePath)
 {
-    // Use config if basePath is empty, otherwise use provided path
+    // Get configuration
+    auto& configManager = ConfigManager::getInstance();
+    auto pathsConfig = configManager.getPathsConfig();
+    
     if (basePath.empty()) {
-        auto& config = ConfigManager::getInstance();
-        baseSessionPath = config.getPathsConfig().sessions_dir;
+        this->baseSessionPath = pathsConfig.sessions_dir;
     } else {
-        baseSessionPath = basePath;
+        this->baseSessionPath = basePath;
     }
     
-    // Create base session directory if it doesn't exist
-    if (!path_exists(baseSessionPath))
-    {
-        create_directories(baseSessionPath);
-    }
-
-    // Scan for existing sessions
-    vector<string> entries = list_directory(baseSessionPath);
-    for (const string& sessionId : entries)
-    {
-        string fullPath = baseSessionPath + "/" + sessionId;
-        if (is_directory(fullPath))
-        {
-            //  Try to load metadata for this session
-            SessionMetadata metadata;
-            string metadataPath = fullPath + "/metadata.json";
-
-            if (path_exists(metadataPath))
-            {
-                // For now, extracting session name from the directory name
-                // Format: name_YYYY-MM-DD-HHMMSS
-                size_t lastUnderscore = sessionId.find_last_of('_');
-                if (lastUnderscore != string::npos)
-                {
-                    metadata.name = sessionId.substr(0, lastUnderscore);
-                }
-                else
-                {
-                    metadata.name = sessionId; // Fallback to full session ID
+    // 🔧 FIX: DON'T create directories in constructor
+    // Only set the path, don't create anything yet
+    
+    // 🔧 FIX: Only scan for existing sessions if directory already exists
+    if (path_exists(this->baseSessionPath)) {
+        // Load existing sessions from directory
+        vector<string> sessionDirectories = list_directory(this->baseSessionPath);
+        
+        for (const string& sessionDir : sessionDirectories) {
+            string fullPath = this->baseSessionPath + "/" + sessionDir;
+            if (is_directory(fullPath)) {
+                SessionMetadata metadata;
+                metadata.name = sessionDir;  // Use directory name as session name
+                
+                // Extract session name from directory (remove timestamp suffix if present)
+                size_t lastUnderscore = sessionDir.find_last_of('_');
+                if (lastUnderscore != string::npos) {
+                    metadata.name = sessionDir.substr(0, lastUnderscore);
+                } else {
+                    metadata.name = sessionDir;
                 }
                 sessionCache[metadata.name] = metadata;
             }
         }
     }
+    // If directory doesn't exist, sessionCache remains empty - that's fine!
 }
 
 SessionManager::~SessionManager()
@@ -144,6 +138,11 @@ bool SessionManager::createSession(const string &name, const string &description
 {
     if (sessionCache.find(name) != sessionCache.end()) {
         cout << "❌ Session '" << name << "' already exists.\n";
+        return false;
+    }
+
+    // 🔧 FIX: Only create base directory when actually needed
+    if (!ensureBaseDirectoryExists()) {
         return false;
     }
 
@@ -229,6 +228,11 @@ bool SessionManager::saveCurrentSession() {
 
 vector<string> SessionManager::listSessions()
 {
+    // 🔧 FIX: Only scan if directory exists
+    if (!path_exists(baseSessionPath)) {
+        return {};  // No sessions if directory doesn't exist yet
+    }
+    
     vector<string> sessions;
     for (const auto &pair : sessionCache)
     {
@@ -594,6 +598,12 @@ bool SessionManager::loadFaissIndex(const string& sessionId) {
 }
 
 bool SessionManager::loadSession(const string& name) {
+    // 🔧 FIX: Check if base directory exists first
+    if (!path_exists(baseSessionPath)) {
+        cout << "❌ No sessions directory exists yet.\n";
+        return false;
+    }
+    
     if (sessionCache.find(name) == sessionCache.end()) {
         cout << "❌ Session '" << name << "' not found.\n";
         return false;
@@ -793,4 +803,15 @@ void SessionManager::closeSession() {
         currentChatHistory.clear();
         currentMetadata = SessionMetadata();
     }
+}
+
+// Add this private method to SessionManager
+bool SessionManager::ensureBaseDirectoryExists() {
+    if (!path_exists(baseSessionPath)) {
+        if (!create_directories(baseSessionPath)) {
+            cout << "❌ Failed to create session directory: " << baseSessionPath << "\n";
+            return false;
+        }
+    }
+    return true;
 }
