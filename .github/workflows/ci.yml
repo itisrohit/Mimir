@@ -14,19 +14,49 @@ jobs:
       - name: Set up Nix
         uses: cachix/install-nix-action@v27
 
-      - name: Enter Nix shell and run tests
+      - name: Run tests in Nix shell
         run: |
-          nix develop --command bash
-        shell: bash
+          nix develop --command bash -c "
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install -r requirements.txt
+            make clean && make
+            make embedding-server &
+            sleep 10  # Give server time to start
+            bash scripts/test_embedding_pipeline.sh
+            bash scripts/test_ci.sh
+          "
 
-      - name: Run tests inside Nix shell
+  macos-homebrew:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Homebrew dependencies
+        run: |
+          brew install cpr llvm nlohmann-json
+
+      - name: Debug: Show working directory and files
+        run: |
+          pwd
+          ls -l
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up venv and install Python deps
         run: |
           python3 -m venv venv
           source venv/bin/activate
           pip install -r requirements.txt
+
+      - name: Build and test
+        run: |
+          source venv/bin/activate
           make clean && make
           make embedding-server &
           sleep 10
           bash scripts/test_embedding_pipeline.sh
           bash scripts/test_ci.sh
-        shell: nix develop --command bash
