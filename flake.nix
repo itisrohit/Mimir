@@ -61,6 +61,7 @@
             pkgs.gpp
             pkgs.poppler_utils # for pdftotext
             pkgs.tesseract
+            pkgs.nlohmann_json
             # cpr removed; use Homebrew for CPR
             # add more tools as needed
           ];

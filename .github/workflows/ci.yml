@@ -31,7 +31,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Homebrew dependencies
         run: |
-          brew install cpr llvm
+          brew install cpr llvm nlohmann-json
+      - name: Debug: Show working directory and files
+        run: |
+          pwd
+          ls -l
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

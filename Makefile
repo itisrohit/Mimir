@@ -53,8 +53,12 @@ ifeq ($(shell uname),Darwin)
     CXX := clang++
   endif
 else
-  # On Linux/Nix, use g++ or clang++
-  CXX ?= g++
+  # On Linux/Nix, prefer clang++ if available, else g++
+  ifeq ($(shell command -v clang++ >/dev/null 2>&1 && echo yes),yes)
+    CXX := clang++
+  else
+    CXX := g++
+  endif
 endif
 
 CXXFLAGS = -std=c++17 -Wall -Wextra -g $(STD_LIB_FLAG) -I/opt/homebrew/include
