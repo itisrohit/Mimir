@@ -1,4 +1,4 @@
-nixname: CI
+name: CI
 
 on:
   push:
