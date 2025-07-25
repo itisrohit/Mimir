@@ -15,7 +15,7 @@ jobs:
         uses: cachix/install-nix-action@v27
 
       - name: Run tests in Nix shell
-        run: nix develop --command bash -c "bash scripts/ci_nix.sh"
+        run: 'nix develop --command bash -c "bash scripts/ci_nix.sh"'
 
   macos-homebrew:
     runs-on: macos-latest
