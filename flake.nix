@@ -11,7 +11,6 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # Custom CPR package (since not in upstream Nixpkgs)
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = [
@@ -29,6 +28,7 @@
           shellHook = ''
             export CXX=g++
             export CC=gcc
+            export CPPFLAGS = -I./include
             echo "🚀 Welcome to Mimir development environment!"
             echo "Platform: ${system}"
             echo ""

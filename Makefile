@@ -13,12 +13,12 @@ ifeq ($(UNAME_S),Darwin)
         CXX := clang++
     endif
     STD_LIB_FLAG = -stdlib=libc++
-    CPPFLAGS = -I/opt/homebrew/include
+    CPPFLAGS = -I/opt/homebrew/include -I./include
     LDFLAGS = -L/opt/homebrew/lib
 else
     # Linux/Nix
     STD_LIB_FLAG =
-    CPPFLAGS =
+    CPPFLAGS = -I./include
     LDFLAGS =
 endif
 
@@ -36,7 +36,7 @@ all: $(TARGET)
 
 # Build the target executable
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) $(LDFLAGS) -lcpr -o $(TARGET)
+	$(CXX) $(OBJECTS) $(LDFLAGS) -o $(TARGET)
 
 # Compile source files
 %.o: %.cpp

@@ -14,10 +14,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <nlohmann/json.hpp> // For JSON parsing (add to your includes)
-#include <cpr/cpr.h>
+#include "httplib.h"
 
 using namespace std;
 
+// Requires: cpp-httplib (https://github.com/yhirose/cpp-httplib)
 // Helper functions to replace filesystem operations
 bool path_exists(const string& path) {
     struct stat buffer;
@@ -299,17 +300,14 @@ bool SessionManager::addDocument(const string &filePath)
     req["texts"] = chunk_texts;
     req["ids"] = chunk_ids;
     // Send POST request to embedding server
-    auto r = cpr::Post(
-        cpr::Url{"http://127.0.0.1:8000/embed"},
-        cpr::Body{req.dump()},
-        cpr::Header{{"Content-Type", "application/json"}}
-    );
-    if (r.status_code != 200) {
-        std::cerr << "Failed to get embeddings from server. Status: " << r.status_code << std::endl;
+    httplib::Client cli("127.0.0.1", 8000);
+    auto res = cli.Post("/embed", req.dump(), "application/json");
+    if (!res || res->status != 200) {
+        std::cerr << "Failed to get embeddings from server. Status: " << (res ? res->status : 0) << std::endl;
         return false;
     }
     // Parse JSON response
-    nlohmann::json resp = nlohmann::json::parse(r.text);
+    nlohmann::json resp = nlohmann::json::parse(res->body);
     std::unordered_map<std::string, std::vector<float>> idToEmbedding;
     for (const auto& item : resp) {
         idToEmbedding[item["id"]] = item["embedding"].get<std::vector<float>>();

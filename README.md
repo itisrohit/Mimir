@@ -84,18 +84,18 @@ For questions or contributions, please open an issue or pull request!
 
 **Note for macOS users:**
 
-This project uses the CPR C++ library for HTTP. To ensure compatibility, you must use Homebrew’s clang++ and CPR:
+This project uses cpp-httplib for HTTP. To ensure compatibility, you must use Homebrew’s clang++ and cpp-httplib:
 
-1. **Install CPR and LLVM via Homebrew:**
+1. **Install cpp-httplib and LLVM via Homebrew:**
    ```sh
-   brew install cpr llvm
+   brew install cpp-httplib llvm
    ```
 2. **Build as usual:**
    ```sh
    make clean && make
    ```
-   The Makefile will auto-detect and use Homebrew’s clang++ if available, ensuring ABI compatibility with Homebrew's CPR.
-3. **If you see linker errors about missing CPR symbols:**
+   The Makefile will auto-detect and use Homebrew’s clang++ if available, ensuring ABI compatibility with Homebrew's cpp-httplib.
+3. **If you see linker errors about missing cpp-httplib symbols:**
    - Make sure you are not using Nix’s g++ to build.
    - The Makefile will fall back to system clang++ if Homebrew's is not found, but you may need to adjust your PATH or install Homebrew's LLVM.
 
@@ -103,7 +103,7 @@ This project uses the CPR C++ library for HTTP. To ensure compatibility, you mus
 - The build uses g++ or clang++ and system/Nix-provided libraries as usual.
 
 **Summary:**
-- Do not mix Nix GCC and Homebrew CPR on macOS.
-- Use Homebrew’s clang++ and CPR together for ABI compatibility.
+- Do not mix Nix GCC and Homebrew cpp-httplib on macOS.
+- Use Homebrew’s clang++ and cpp-httplib together for ABI compatibility.
 - The Makefile auto-selects the best compiler for your environment.
 

@@ -1,4 +1,4 @@
-name: CI
+nixname: CI
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Homebrew dependencies
         run: |
-          brew install cpr llvm nlohmann-json
+          brew install llvm nlohmann-json
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
