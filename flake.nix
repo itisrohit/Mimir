@@ -12,44 +12,6 @@
         pkgs = import nixpkgs { inherit system; };
 
         # Custom CPR package (since not in upstream Nixpkgs)
-        cpr = pkgs.stdenv.mkDerivation rec {
-          pname = "cpr";
-          version = "1.10.4";
-          src = pkgs.fetchFromGitHub {
-            owner = "libcpr";
-            repo = "cpr";
-            rev = "${version}";
-            sha256 = "sha256-8qRNlZgBB71t/FSFPnxFhr02OuD2erLVeoc6wAx3LKk=";
-          };
-          nativeBuildInputs = [ pkgs.cmake pkgs.pkg-config pkgs.git ];
-          buildInputs = [ pkgs.openssl pkgs.curl pkgs.zlib ];
-          cmakeFlags = [
-            "-DCPR_BUILD_TESTS=OFF"
-            "-DCPR_BUILD_EXAMPLES=OFF"
-            "-DCPR_FORCE_USE_SYSTEM_CURL=ON"
-            "-DCPR_FORCE_USE_SYSTEM_ZLIB=ON"
-            "-DCPR_FORCE_USE_SYSTEM_OPENSSL=ON"
-            "-DBUILD_SHARED_LIBS=ON"
-            "-DCPR_USE_SYSTEM_FILESYSTEM=ON"
-            "-DCPR_FORCE_USE_SYSTEM_FILESYSTEM=ON"
-            "-DCPR_CXX_STANDARD=17"
-          ];
-          patches = [ ./cpr-no-stdc++fs.patch ];
-          preBuild = ''
-            # Remove -lstdc++fs from all files in the build directory before building
-            find . -type f -exec sed -i.bak 's/-lstdc++fs//g' {} +
-          '';
-          postPatch = ''
-            # Remove -lstdc++fs from all CMake files (fixes macOS/modern clang)
-            find . -type f -name '*.cmake' -exec sed -i.bak 's/-lstdc++fs//g' {} +
-            find . -type f -name 'CMakeLists.txt' -exec sed -i.bak 's/-lstdc++fs//g' {} +
-          '';
-          installPhase = ''
-            mkdir -p $out/lib $out/include
-            cp -r include/cpr $out/include/
-            cp build/libcpr* $out/lib/
-          '';
-        };
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = [
@@ -62,7 +24,6 @@
             pkgs.poppler_utils # for pdftotext
             pkgs.tesseract
             pkgs.nlohmann_json
-            # cpr removed; use Homebrew for CPR
             # add more tools as needed
           ];
           shellHook = ''
