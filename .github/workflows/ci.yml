@@ -16,22 +16,16 @@ jobs:
 
       - name: Run tests in Nix shell
         run: |
-          nix develop --command bash -c 'bash scripts/ci_nix.sh'
+          nix develop --command bash -c "bash scripts/ci_nix.sh"
 
   macos-homebrew:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Homebrew
-        uses: actions/cache@v2
-        with:
-          path: ~/Library/Caches/Homebrew
-          key: brew-${{ runner.os }}-deps
-
       - name: Install Homebrew dependencies
         run: |
-          env HOMEBREW_NO_AUTO_UPDATE=1 brew install cpr llvm nlohmann-json
+          brew install cpr llvm nlohmann-json
 
       - name: Debug: Show working directory and files
         run: |
