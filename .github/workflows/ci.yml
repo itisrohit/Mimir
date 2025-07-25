@@ -16,16 +16,7 @@ jobs:
 
       - name: Run tests in Nix shell
         run: |
-          nix develop --command bash -c "
-            python3 -m venv venv
-            source venv/bin/activate
-            pip install -r requirements.txt
-            make clean && make
-            make embedding-server &
-            sleep 10  # Give server time to start
-            bash scripts/test_embedding_pipeline.sh
-            bash scripts/test_ci.sh
-          "
+          nix develop --command bash -c "bash scripts/ci_nix.sh"
 
   macos-homebrew:
     runs-on: macos-latest
