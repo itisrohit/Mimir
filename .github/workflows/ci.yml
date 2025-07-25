@@ -22,9 +22,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Homebrew
+        uses: actions/cache@v2
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-${{ runner.os }}-deps
+
       - name: Install Homebrew dependencies
         run: |
-          brew install cpr llvm nlohmann-json
+          env HOMEBREW_NO_AUTO_UPDATE=1 brew install cpr llvm nlohmann-json
 
       - name: Debug: Show working directory and files
         run: |
