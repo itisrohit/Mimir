@@ -838,6 +838,7 @@ size_t DocumentProcessor::findOptimalChunkEnd(const string& text, size_t start, 
 }
 
 string DocumentProcessor::extractPdfChunkMetadata(const string& content, const vector<PdfSection>& sections, const vector<size_t>& pages, size_t position) {
+    (void)content;
     stringstream metadata;
     
     // Find which section this chunk belongs to

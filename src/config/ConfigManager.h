@@ -39,11 +39,12 @@ struct DocumentProcessingConfig {
 };
 
 struct EmbeddingConfig {
-    string provider = "local";
-    string model = "sentence-transformers/all-MiniLM-L6-v2";
-    int vector_dimension = 384;
-    int batch_size = 32;
-    map<string, string> provider_settings;
+    std::string model;
+    int dim;
+    int batch_size;
+    std::string python_path;
+    std::string script_path;
+    bool semantic_search_enabled;
 };
 
 struct VectorDbConfig {
@@ -119,7 +120,7 @@ public:
     // Setters for runtime configuration changes
     void setDocumentChunkSize(size_t size) { document_processing.chunk_size = size; }
     void setDocumentChunkOverlap(size_t overlap) { document_processing.chunk_overlap = overlap; }
-    void setEmbeddingProvider(const string& provider) { embedding.provider = provider; }
+    // void setEmbeddingProvider(const string& provider) { embedding.provider = provider; } // REMOVED: no provider field
     void setChatProvider(const string& provider) { chat.provider = provider; }
     void setVectorDbType(const string& type) { vector_db.type = type; }
     

@@ -1,5 +1,5 @@
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -g
+CXX ?= g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -g $(STD_LIB_FLAG) -I/opt/homebrew/include
 TARGET = mimir
 SRCDIR = src
 SOURCES = $(SRCDIR)/main.cpp \
@@ -10,7 +10,14 @@ OBJECTS = $(SOURCES:.cpp=.o)
 
 # Detect platform and compiler
 UNAME_S := $(shell uname -s)
-CXX_VERSION := $(shell $(CXX) --version 2>/dev/null | head -n1)
+CXX_VERSION := $(shell $(CXX) --version)
+
+# Detect compiler and set stdlib flag if needed
+ifeq ($(findstring clang,$(CXX_VERSION)),clang)
+    STD_LIB_FLAG = -stdlib=libc++
+else
+    STD_LIB_FLAG =
+endif
 
 # Compiler-specific flags
 ifeq ($(findstring clang,$(CXX_VERSION)),clang)
@@ -35,6 +42,22 @@ ifeq ($(UNAME_S),Darwin)
         LDFLAGS += -lstdc++fs
     endif
 endif
+
+# Compiler selection logic for cross-platform compatibility
+ifeq ($(shell uname),Darwin)
+  # On macOS, prefer Homebrew's clang++ if available
+  HOMEBREW_CLANG := /opt/homebrew/opt/llvm/bin/clang++
+  ifeq ($(shell test -x $(HOMEBREW_CLANG) && echo yes),yes)
+    CXX := $(HOMEBREW_CLANG)
+  else
+    CXX := clang++
+  endif
+else
+  # On Linux/Nix, use g++ or clang++
+  CXX ?= g++
+endif
+
+CXXFLAGS = -std=c++17 -Wall -Wextra -g $(STD_LIB_FLAG) -I/opt/homebrew/include
 
 # Default target
 all: $(TARGET)
@@ -63,4 +86,55 @@ clean:
 run: $(TARGET) config
 	./$(TARGET)
 
+# Python embedding pipeline dependencies
+.PHONY: install-embed-deps
+install-embed-deps:
+	python3.11 -m venv venv
+	source venv/bin/activate && pip install --upgrade pip
+	source venv/bin/activate && pip install torch transformers sentence-transformers einops
+
+# Run embedding pipeline test (from project root)
+.PHONY: embed-test
+embed-test:
+	source venv/bin/activate && python scripts/embedding_pipeline.py < /dev/null
+
+# Clean up model cache and temp files
+.PHONY: clean-models
+clean-models:
+	rm -rf models/
+	rm -rf ~/.cache/huggingface/
+	rm -f /tmp/mimir_chunks.json
+
 .PHONY: all clean run config
+
+# Remove Homebrew-specific include/lib paths
+# Use only system/Nix includes and libraries
+CXX ?= g++
+CXX_VERSION := $(shell $(CXX) --version)
+ifeq ($(findstring clang,$(CXX_VERSION)),clang)
+    STD_LIB_FLAG = -stdlib=libc++
+else
+    STD_LIB_FLAG =
+endif
+
+CXXFLAGS = -std=c++17 -Wall -Wextra -g $(STD_LIB_FLAG) -I/opt/homebrew/include
+
+src/main.o: src/main.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+src/session/SessionManager.o: src/session/SessionManager.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+src/document_processor/Chunker.o: src/document_processor/Chunker.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+src/config/ConfigManager.o: src/config/ConfigManager.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+mimir: src/main.o src/session/SessionManager.o src/document_processor/Chunker.o src/config/ConfigManager.o
+	$(CXX) $^ $(STD_LIB_FLAG) -L/opt/homebrew/lib -lcpr -o $@
+
+.PHONY: embedding-server
+embedding-server:
+	@echo "Starting embedding server..."
+	@source venv/bin/activate && uvicorn embedding_server:app --host 127.0.0.1 --port 8000

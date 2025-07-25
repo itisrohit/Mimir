@@ -1,105 +1,69 @@
 {
-  description = "Mimir - Document Chat CLI";
+  description = "Mimir dev environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
-        
-        # Platform-specific packages
-        platformPackages = with pkgs; [
-          # Core development tools (work everywhere)
-          gcc  # Use GCC consistently
-          gnumake
-          gdb
-          pkg-config
-          coreutils
-          git
-          vim
-        ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-          # Linux-only packages
-          valgrind
-        ];
-        
-        mimir = pkgs.stdenv.mkDerivation {
-          pname = "mimir";
-          version = "1.0.0";
-          
-          src = ./.;
-          
-          nativeBuildInputs = with pkgs; [
-            gcc  # Explicitly use GCC
-            gnumake
-            pkg-config
-          ];
-          
-          buildInputs = with pkgs; [
-            # Existing dependencies
-            gcc
-            gnumake
-            
-            # 🆕 ADD PDF PROCESSING DEPENDENCIES:
-            poppler_utils  # Provides pdftotext, pdfinfo, pdftoppm
-            tesseract      # OCR for scanned PDFs
-            imagemagick    # Image processing
-            ghostscript    # PDF manipulation
-          ];
-          
-          # Set environment variables to ensure GCC is used
-          preBuild = ''
-            export CXX=g++
-            export CC=gcc
-          '';
-          
-          buildPhase = ''
-            make clean
-            make all
-          '';
-          
-          installPhase = ''
-            mkdir -p $out/bin
-            cp mimir $out/bin/
-            mkdir -p $out/share/mimir
-            cp config.yaml $out/share/mimir/
-            cp -r scripts $out/share/mimir/
-          '';
-          
-          meta = with pkgs.lib; {
-            description = "The smartest way to talk to your data";
-            homepage = "https://github.com/itisrohit/Mimir";
-            license = licenses.mit;
-            platforms = platforms.unix;
-            maintainers = [ ];
+        pkgs = import nixpkgs { inherit system; };
+
+        # Custom CPR package (since not in upstream Nixpkgs)
+        cpr = pkgs.stdenv.mkDerivation rec {
+          pname = "cpr";
+          version = "1.10.4";
+          src = pkgs.fetchFromGitHub {
+            owner = "libcpr";
+            repo = "cpr";
+            rev = "${version}";
+            sha256 = "sha256-8qRNlZgBB71t/FSFPnxFhr02OuD2erLVeoc6wAx3LKk=";
           };
+          nativeBuildInputs = [ pkgs.cmake pkgs.pkg-config pkgs.git ];
+          buildInputs = [ pkgs.openssl pkgs.curl pkgs.zlib ];
+          cmakeFlags = [
+            "-DCPR_BUILD_TESTS=OFF"
+            "-DCPR_BUILD_EXAMPLES=OFF"
+            "-DCPR_FORCE_USE_SYSTEM_CURL=ON"
+            "-DCPR_FORCE_USE_SYSTEM_ZLIB=ON"
+            "-DCPR_FORCE_USE_SYSTEM_OPENSSL=ON"
+            "-DBUILD_SHARED_LIBS=ON"
+            "-DCPR_USE_SYSTEM_FILESYSTEM=ON"
+            "-DCPR_FORCE_USE_SYSTEM_FILESYSTEM=ON"
+            "-DCPR_CXX_STANDARD=17"
+          ];
+          patches = [ ./cpr-no-stdc++fs.patch ];
+          preBuild = ''
+            # Remove -lstdc++fs from all files in the build directory before building
+            find . -type f -exec sed -i.bak 's/-lstdc++fs//g' {} +
+          '';
+          postPatch = ''
+            # Remove -lstdc++fs from all CMake files (fixes macOS/modern clang)
+            find . -type f -name '*.cmake' -exec sed -i.bak 's/-lstdc++fs//g' {} +
+            find . -type f -name 'CMakeLists.txt' -exec sed -i.bak 's/-lstdc++fs//g' {} +
+          '';
+          installPhase = ''
+            mkdir -p $out/lib $out/include
+            cp -r include/cpr $out/include/
+            cp build/libcpr* $out/lib/
+          '';
         };
-      in
-      {
-        packages = {
-          default = mimir;
-          mimir = mimir;
-        };
-        
+      in {
         devShells.default = pkgs.mkShell {
-          buildInputs = platformPackages ++ (with pkgs; [
-            # 🆕 ADD PDF PROCESSING TOOLS TO DEV SHELL:
-            poppler_utils  # Provides pdftotext, pdfinfo, pdftoppm
-            tesseract      # OCR for scanned PDFs
-            imagemagick    # Image processing
-            ghostscript    # PDF manipulation
-            
-            # Future libraries (for when you're ready)
-            # faiss
-            # curl
-            # nlohmann_json
-            # sqlite
-          ]);
-          
-          # Ensure GCC is used in development shell
+          buildInputs = [
+            pkgs.python311
+            pkgs.python311.pkgs.pip
+            pkgs.gcc
+            pkgs.gnumake
+            pkgs.bash
+            pkgs.gpp
+            pkgs.poppler_utils # for pdftotext
+            pkgs.tesseract
+            # cpr removed; use Homebrew for CPR
+            # add more tools as needed
+          ];
           shellHook = ''
             export CXX=g++
             export CC=gcc
@@ -114,47 +78,21 @@
             echo "Tools available:"
             echo "  gcc: $(gcc --version | head -n1)"
             echo "  make: $(make --version | head -n1)"
-            ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-            echo "  valgrind: $(valgrind --version | head -n1)"
-            ''}
+            if [ "$(uname)" = "Linux" ]; then
+              echo "  valgrind: $(valgrind --version | head -n1)"
+            fi
             echo ""
             echo "📄 PDF Tools available:"
             echo "  pdftotext: $(pdftotext -v 2>&1 | head -n1 || echo 'Available')"
             echo "  tesseract: $(tesseract --version 2>&1 | head -n1 || echo 'Available')"
             echo ""
-          '';
-        };
-        
-        # For CI/CD - Fixed to handle Nix sandbox permissions
-        checks = {
-          # Just check that the package builds (this already works)
-          build = mimir;
-          
-          # Basic smoke test that doesn't require building from source
-          smoke-test = pkgs.runCommand "mimir-smoke-test" {
-            buildInputs = [ mimir pkgs.coreutils ];
-          } ''
-            echo "🧪 Running smoke test with pre-built binary..."
-            
-            # Test that the binary exists and is executable
-            if [ ! -x "${mimir}/bin/mimir" ]; then
-              echo "❌ Mimir binary not found or not executable"
-              exit 1
+            if [ ! -d venv ]; then
+              python -m venv venv
+              echo "Created venv. Run 'source venv/bin/activate' and 'pip install -r requirements.txt'"
             fi
-            
-            echo "✅ Mimir binary is properly built and executable"
-            
-            # Test help command (with timeout fallback)
-            echo "📋 Testing help command..."
-            timeout 5s echo "help" | ${mimir}/bin/mimir > /dev/null 2>&1 || echo "Help test completed (timeout expected)"
-            
-            # Test version/startup
-            echo "📋 Testing startup..."
-            timeout 3s echo "quit" | ${mimir}/bin/mimir > /dev/null 2>&1 || echo "Startup test completed (timeout expected)"
-            
-            echo "✅ Smoke test completed successfully"
-            touch $out
+            echo "Run: source venv/bin/activate"
           '';
         };
-      });
+      }
+    );
 }

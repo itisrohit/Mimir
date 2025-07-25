@@ -7,6 +7,9 @@ mimir
 *.obj
 *.dSYM/
 
+# Model files
+models/
+
 # Data directory (sessions and user data)
 .data/
 sessions/  # Legacy location
@@ -40,3 +43,25 @@ result-*
 # Temporary files
 *.tmp
 *.temp
+
+# Python and testing artifacts
+__pycache__/
+*.pyc
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.coverage
+.ipynb_checkpoints/
+*.egg-info/
+.eggs/
+
+# Cursor-related
+.cursorignore
+.cursor/
+
+# Environment files
+.env
+
+# Other
+test_embed_doc.txt

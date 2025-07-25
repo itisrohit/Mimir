@@ -15,6 +15,7 @@ struct DocumentChunk {
     int chunk_index;
     size_t start_position;
     size_t end_position;
+    vector<float> embedding; // Embedding vector for semantic search
 };
 
 struct ChatMessage {

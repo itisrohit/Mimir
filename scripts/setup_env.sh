@@ -13,6 +13,9 @@ echo "✅ Make found: $(make --version | head -n1)"
 # Set executable permissions for scripts
 chmod +x scripts/*.sh
 
+# Install Python dependencies for embedding pipeline
+pip install torch transformers sentence-transformers einops git+https://github.com/nomic-ai/megablocks.git
+
 echo "✅ Development environment setup complete!"
 echo "📁 Session directories will be created automatically when needed based on config"
 echo "Run 'make' to build the project"

@@ -11,6 +11,10 @@
 #include <cerrno> 
 #include "../document_processor/Chunker.h"
 #include "../config/ConfigManager.h"
+#include <cstdio>
+#include <cstdlib>
+#include <nlohmann/json.hpp> // For JSON parsing (add to your includes)
+#include <cpr/cpr.h>
 
 using namespace std;
 
@@ -281,12 +285,35 @@ bool SessionManager::addDocument(const string &filePath)
     // Process document using the document processor
     DocumentProcessor processor;
     vector<TextChunk> textChunks = processor.processDocument(filePath);
-    
     if (textChunks.empty()) {
         cout << "❌ Failed to process document or document is empty.\n";
         return false;
     }
-
+    // Batch all chunks for embedding
+    std::vector<std::string> chunk_texts, chunk_ids;
+    for (const auto& textChunk : textChunks) {
+        chunk_texts.push_back(textChunk.content);
+        chunk_ids.push_back(textChunk.id);
+    }
+    nlohmann::json req;
+    req["texts"] = chunk_texts;
+    req["ids"] = chunk_ids;
+    // Send POST request to embedding server
+    auto r = cpr::Post(
+        cpr::Url{"http://127.0.0.1:8000/embed"},
+        cpr::Body{req.dump()},
+        cpr::Header{{"Content-Type", "application/json"}}
+    );
+    if (r.status_code != 200) {
+        std::cerr << "Failed to get embeddings from server. Status: " << r.status_code << std::endl;
+        return false;
+    }
+    // Parse JSON response
+    nlohmann::json resp = nlohmann::json::parse(r.text);
+    std::unordered_map<std::string, std::vector<float>> idToEmbedding;
+    for (const auto& item : resp) {
+        idToEmbedding[item["id"]] = item["embedding"].get<std::vector<float>>();
+    }
     // Convert TextChunk to DocumentChunk and add to session
     for (const auto& textChunk : textChunks) {
         DocumentChunk chunk;
@@ -296,7 +323,10 @@ bool SessionManager::addDocument(const string &filePath)
         chunk.chunk_index = textChunk.chunk_index;
         chunk.start_position = textChunk.start_position;
         chunk.end_position = textChunk.end_position;
-        
+        // Attach embedding
+        if (idToEmbedding.count(chunk.id)) {
+            chunk.embedding = idToEmbedding[chunk.id];
+        }
         currentDocChunks.push_back(chunk);
     }
 
@@ -304,6 +334,9 @@ bool SessionManager::addDocument(const string &filePath)
     currentMetadata.documents.push_back(filePath);
     currentMetadata.total_chunks = currentDocChunks.size();
     currentMetadata.last_modified = getCurrentTimestamp();
+
+    // Debug: print currentDocChunks size before saving
+    cout << "DEBUG: currentDocChunks size before save: " << currentDocChunks.size() << endl;
 
     // 🎯 HYBRID AUTO-SAVE: Save immediately for better UX
     if (autoSaveIfEnabled("document_add")) {
@@ -688,31 +721,25 @@ string SessionManager::chatHistoryToJson() {
 }
 
 string SessionManager::documentChunksToJson() {
-    stringstream ss;
-    ss << "{\n";
-    ss << "  \"chunks\": [\n";
-    
-    for (size_t i = 0; i < currentDocChunks.size(); ++i) {
-        const auto& chunk = currentDocChunks[i];
-        ss << "    {\n";
-        ss << "      \"id\": \"" << chunk.id << "\",\n";
-        ss << "      \"content\": \"" << chunk.content << "\",\n";
-        ss << "      \"source_file\": \"" << chunk.source_file << "\",\n";
-        ss << "      \"chunk_index\": " << chunk.chunk_index << ",\n";
-        ss << "      \"start_position\": " << chunk.start_position << ",\n";
-        ss << "      \"end_position\": " << chunk.end_position << "\n";
-        ss << "    }";
-        if (i < currentDocChunks.size() - 1) ss << ",";
-        ss << "\n";
+    nlohmann::json j;
+    j["chunks"] = nlohmann::json::array();
+    for (const auto& chunk : currentDocChunks) {
+        nlohmann::json chunk_j;
+        chunk_j["id"] = chunk.id;
+        chunk_j["content"] = chunk.content;
+        chunk_j["source_file"] = chunk.source_file;
+        chunk_j["chunk_index"] = chunk.chunk_index;
+        chunk_j["start_position"] = chunk.start_position;
+        chunk_j["end_position"] = chunk.end_position;
+        chunk_j["embedding"] = chunk.embedding;
+        j["chunks"].push_back(chunk_j);
     }
-    
-    ss << "  ]\n";
-    ss << "}\n";
-    return ss.str();
+    return j.dump(2); // pretty print
 }
 
 // Basic JSON parsing (simplified implementation)
 bool SessionManager::parseMetadataFromJson(const string& json) {
+    (void)json;
     // TODO: Implement proper JSON parsing
     // For now, just initialize with default values
     currentMetadata = SessionMetadata();
@@ -720,12 +747,14 @@ bool SessionManager::parseMetadataFromJson(const string& json) {
 }
 
 bool SessionManager::parseChatHistoryFromJson(const string& json) {
+    (void)json;
     // TODO: Implement proper JSON parsing
     currentChatHistory.clear();
     return true;
 }
 
 bool SessionManager::parseDocumentChunksFromJson(const string& json) {
+    (void)json;
     // TODO: Implement proper JSON parsing
     currentDocChunks.clear();
     return true;

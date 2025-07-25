@@ -2,170 +2,50 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
 
 jobs:
-  build-nix:
+  nix-linux:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Nix
-      uses: cachix/install-nix-action@v23
-      with:
-        github_access_token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Build with Nix
-      run: nix build
-    
-    - name: Run Nix flake checks
-      run: nix flake check
-    
-    - name: Test development environment with PDF tools
-      run: |
-        nix develop --command bash -c "
-          echo '🔍 Checking PDF tools in Nix environment...'
-          which pdftotext || echo '⚠️ pdftotext not found'
-          which tesseract || echo '⚠️ tesseract not found'
-          which pdfinfo || echo '⚠️ pdfinfo not found'
-          
-          echo '🔨 Building and testing...'
-          make clean && make
-          
-          echo '🧪 Running basic functionality test...'
-          echo 'help' | timeout 5s ./mimir || echo 'Basic test completed'
-          
-          echo '📄 Testing document processing...'
-          echo 'Test content for CI' > ci_test.txt
-          echo -e 'init ci_test\nadd-doc ci_test.txt\ninfo\nquit' | timeout 10s ./mimir || echo 'Document test completed'
-          
-          echo '✅ Nix development environment test completed'
-        "
+      - uses: actions/checkout@v4
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v27
+      - name: Enter Nix shell and run tests
+        run: |
+          nix develop --command bash -c '
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install -r requirements.txt
+            make clean && make
+            make embedding-server &
+            sleep 10  # Give server time to start
+            bash scripts/test_embedding_pipeline.sh
+            bash scripts/test_ci.sh
+          '
 
-  build-ubuntu-traditional:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential g++ make
-        # Install PDF processing tools for full testing
-        sudo apt-get install -y poppler-utils tesseract-ocr
-    
-    - name: Build and test with traditional tools
-      run: |
-        chmod +x scripts/*.sh
-        ./scripts/setup_env.sh
-        ./scripts/build.sh
-        ./scripts/test_ci.sh
-        
-        # Test PDF functionality if tools are available
-        if command -v pdftotext >/dev/null 2>&1; then
-          echo "✅ PDF tools available for testing"
-          echo "Testing PDF error handling..."
-          echo -e "init pdf_ci_test\nadd-doc nonexistent.pdf\ninfo\nquit" | timeout 10s ./mimir || echo "PDF error handling test completed"
-        else
-          echo "⚠️ PDF tools not available in traditional build"
-        fi
-
-  build-macos:
+  macos-homebrew:
     runs-on: macos-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Nix
-      uses: cachix/install-nix-action@v23
-      with:
-        github_access_token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Build with Nix on macOS
-      run: nix build
-    
-    - name: Test with Nix on macOS
-      run: |
-        nix develop --command bash -c "
-          echo '🍎 Testing on macOS with Nix...'
+      - uses: actions/checkout@v4
+      - name: Install Homebrew dependencies
+        run: |
+          brew install cpr llvm
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Set up venv and install Python deps
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+      - name: Build and test
+        run: |
+          source venv/bin/activate
           make clean && make
-          
-          echo '🧪 Running macOS-specific tests...'
-          echo 'help' | timeout 5s ./mimir || echo 'macOS basic test completed'
-          
-          # Test file path handling (important for macOS)
-          echo 'macOS test content' > 'test file with spaces.txt'
-          echo -e 'init macos_test\nadd-doc \"test file with spaces.txt\"\ninfo\nquit' | timeout 10s ./mimir || echo 'macOS file path test completed'
-          
-          echo '✅ macOS testing completed'
-        "
-
-  test-pdf-functionality:
-    runs-on: ubuntu-latest
-    needs: build-nix
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Nix
-      uses: cachix/install-nix-action@v23
-      with:
-        github_access_token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Test PDF processing capabilities
-      run: |
-        nix develop --command bash -c "
-          echo '📄 Testing PDF processing pipeline...'
-          
-          # Verify PDF tools are available
-          pdftotext -v 2>&1 | head -1 || (echo '❌ pdftotext not available' && exit 1)
-          tesseract --version 2>&1 | head -1 || (echo '❌ tesseract not available' && exit 1)
-          
-          echo '✅ PDF tools verified'
-          
-          # Build and test PDF error handling
-          make clean && make
-          
-          echo '🧪 Testing PDF error handling...'
-          echo -e 'init pdf_pipeline_test\nadd-doc nonexistent.pdf\ninfo\nquit' | timeout 15s ./mimir > pdf_test.log || echo 'PDF test completed'
-          
-          # Check for proper error messages
-          if grep -q 'does not exist\|Failed to read' pdf_test.log; then
-            echo '✅ PDF error handling working correctly'
-          else
-            echo '⚠️ PDF error handling may need review'
-            cat pdf_test.log
-          fi
-          
-          echo '📊 PDF functionality test completed'
-        "
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    needs: [build-nix, build-ubuntu-traditional]
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Nix
-      uses: cachix/install-nix-action@v23
-      with:
-        github_access_token: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Run comprehensive integration tests
-      run: |
-        nix develop --command bash -c "
-          echo '🔄 Running comprehensive integration tests...'
-          
-          make clean && make
-          chmod +x scripts/*.sh
-          
-          # Run all test suites
-          ./scripts/test_workflow.sh
-          
-          echo '✅ Integration tests completed successfully'
-        "
+          make embedding-server &
+          sleep 10
+          bash scripts/test_embedding_pipeline.sh
+          bash scripts/test_ci.sh

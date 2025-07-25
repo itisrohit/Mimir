@@ -43,24 +43,12 @@ document_processing:
 
 # Embedding Configuration
 embedding:
-  provider: "local"             # Options: "local", "openai", "groq", "huggingface"
-  model: "sentence-transformers/all-MiniLM-L6-v2"  # Local model path or API model name
-  vector_dimension: 384         # Dimension of embeddings (model-specific)
-  batch_size: 32               # Batch size for embedding generation
-  
-  # Provider-specific settings
-  openai:
-    api_key: ""                 # Set via environment variable OPENAI_API_KEY
-    model: "text-embedding-ada-002"
-    dimension: 1536
-  
-  groq:
-    api_key: ""                 # Set via environment variable GROQ_API_KEY
-    model: "mixtral-8x7b-32768"
-  
-  huggingface:
-    api_key: ""                 # Set via environment variable HF_API_KEY
-    model: "sentence-transformers/all-MiniLM-L6-v2"
+  model: nomic-ai/nomic-embed-text-v2-moe
+  dim: 256
+  batch_size: 16
+  python_path: python3
+  script_path: scripts/embedding_pipeline.py
+  semantic_search_enabled: false
 
 # Vector Database Configuration
 vector_db:

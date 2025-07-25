@@ -122,13 +122,14 @@ void ConfigManager::applyConfig(const string& section, const string& subsection,
     }
     else if (section == "embedding") {
         if (subsection.empty()) {
-            if (key == "provider") embedding.provider = value;
-            else if (key == "model") embedding.model = value;
-            else if (key == "vector_dimension") embedding.vector_dimension = stoi(value);
+            if (key == "model") embedding.model = value;
+            else if (key == "dim") embedding.dim = stoi(value);
             else if (key == "batch_size") embedding.batch_size = stoi(value);
-        } else {
-            embedding.provider_settings[subsection + "." + key] = value;
+            else if (key == "python_path") embedding.python_path = value;
+            else if (key == "script_path") embedding.script_path = value;
+            else if (key == "semantic_search_enabled") embedding.semantic_search_enabled = (value == "true");
         }
+        // No provider_settings or subsections for embedding
     }
     else if (section == "vector_db") {
         if (subsection.empty()) {
@@ -190,7 +191,6 @@ void ConfigManager::printConfig() const {
     cout << "Sessions Dir: " << paths.sessions_dir << "\n";
     cout << "Chunk Size: " << document_processing.chunk_size << "\n";
     cout << "Chunk Overlap: " << document_processing.chunk_overlap << "\n";
-    cout << "Embedding Provider: " << embedding.provider << "\n";
     cout << "Embedding Model: " << embedding.model << "\n";
     cout << "Vector DB: " << vector_db.type << "\n";
     cout << "Chat Provider: " << chat.provider << "\n";
@@ -214,3 +214,7 @@ vector<string> ConfigManager::split(const string& str, char delimiter) {
     }
     return tokens;
 }
+
+// Remove all legacy provider/vector_dimension/provider_settings logic
+// Remove any use of getString, getInt, getBool
+// Remove any print statements for Embedding Provider
