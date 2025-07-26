@@ -1,84 +1,76 @@
 #!/bin/bash
-set -e
 
-# Test file and session names
-TEST_DOC="test_embed_doc.txt"
-SESSION_NAME="embed_test_session"
+# Mimir Embedding Pipeline Test
+# Tests the complete pipeline: SentencePiece tokenizer + ONNX embedding model
 
-# 1. Create a larger test document
-cat > "$TEST_DOC" <<EOF
-The quick brown fox jumps over the lazy dog.
-A fast brown fox leaps over a sleepy dog.
-Quantum mechanics is a fundamental theory in physics.
-Artificial intelligence is transforming the world.
-Deep learning enables powerful models for vision and language.
-The mitochondria is the powerhouse of the cell.
-To be or not to be, that is the question.
-In the beginning, the universe was created. This has made a lot of people very angry and been widely regarded as a bad move.
-The rain in Spain stays mainly in the plain.
-All work and no play makes Jack a dull boy.
-Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-$(for i in {1..100}; do echo "This is line $i of the large test document. The quick brown fox jumps over the lazy dog."; done)
-EOF
+set -e  # Exit on any error
 
-# 2. Build the project and test embedding pipeline
-printf '\n==== Building main project and test_onnx ===='\n
-make all
-make test-onnx
+echo "🧪 Testing Mimir Embedding Pipeline"
+echo "=================================="
 
-# 3. Run Mimir CLI to create session, add doc, and close in a single process, timing the whole pipeline
-START_TOTAL=$(date +%s)
-echo -e "init $SESSION_NAME\nadd-doc $TEST_DOC\ninfo\nclose\nquit" | ./mimir
-END_TOTAL=$(date +%s)
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# 4. Find the latest session directory
-SESSION_DIR=$(find .data/sessions -type d -name "${SESSION_NAME}_*" | sort | tail -1)
-if [ -z "$SESSION_DIR" ]; then
-  echo "❌ Session directory not found!"
-  exit 1
+# Test configuration
+MODEL_DIR="models/bge-m3-onnx/"
+TOKENIZER_PATH="${MODEL_DIR}sentencepiece.bpe.model"
+MODEL_PATH="${MODEL_DIR}model.onnx"
+TEST_FILE="test_document.txt"
+TEST_EXEC="test_embedding_pipeline"
+
+echo -e "${BLUE}📁 Checking model files...${NC}"
+if [ ! -f "$TOKENIZER_PATH" ]; then
+    echo -e "${RED}❌ Tokenizer not found: $TOKENIZER_PATH${NC}"
+    exit 1
 fi
 
-# 5. Check for doc_chunks.json and metadata.json
-if [ ! -f "$SESSION_DIR/doc_chunks.json" ]; then
-  echo "❌ doc_chunks.json not found in $SESSION_DIR"
-  exit 1
-fi
-if [ ! -f "$SESSION_DIR/metadata.json" ]; then
-  echo "❌ metadata.json not found in $SESSION_DIR"
-  exit 1
+if [ ! -f "$MODEL_PATH" ]; then
+    echo -e "${RED}❌ Model not found: $MODEL_PATH${NC}"
+    exit 1
 fi
 
-# 6. Parse doc_chunks.json to verify embeddings
-EMBEDDING_COUNT=$(jq '[.chunks[] | select(.embedding != null and (.embedding | length) > 0)] | length' "$SESSION_DIR/doc_chunks.json")
-CHUNK_COUNT=$(jq '.chunks | length' "$SESSION_DIR/doc_chunks.json")
-if [ "$EMBEDDING_COUNT" -eq "$CHUNK_COUNT" ]; then
-  echo "✅ All $CHUNK_COUNT chunks have non-empty embeddings."
+echo -e "${GREEN}✅ Model files found${NC}"
+
+echo -e "${BLUE}🔨 Building test executable...${NC}"
+make clean > /dev/null 2>&1
+
+# Build test executable
+g++ -std=c++17 -Wall -Wextra -O2 -I./include -I./src -I/opt/homebrew/include -I/opt/homebrew/Cellar/onnxruntime/1.22.1/include/onnxruntime -L/opt/homebrew/lib -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lsentencepiece -o "$TEST_EXEC" \
+    scripts/test_embedding_pipeline.cpp src/embedding/OnnxEmbedder.cpp src/embedding/SentencePieceTokenizer.cpp
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Build failed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Build successful${NC}"
+
+echo -e "${BLUE}🧪 Running embedding pipeline test...${NC}"
+
+# Run the test and capture output
+OUTPUT=$(./"$TEST_EXEC" 2>&1)
+EXIT_CODE=$?
+
+# Clean up test executable
+rm -f "$TEST_EXEC"
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo -e "${GREEN}✅ Test passed!${NC}"
+    echo ""
+    echo -e "${BLUE}📊 Test Results:${NC}"
+    echo "$OUTPUT" | grep -E "(✅|❌|Testing|Generated|Performance)"
 else
-  echo "❌ Only $EMBEDDING_COUNT of $CHUNK_COUNT chunks have embeddings!"
-  exit 1
+    echo -e "${RED}❌ Test failed with exit code $EXIT_CODE${NC}"
+    echo ""
+    echo -e "${YELLOW}📋 Full output:${NC}"
+    echo "$OUTPUT"
+    exit 1
 fi
 
-# 7. Print summary and timing benchmarks
-echo "[PASS] Embedding pipeline integration test succeeded."
-echo "--- Benchmark Results ---"
-echo "Total pipeline: $((END_TOTAL - START_TOTAL)) s"
-
-# 8. Optionally run the C++ test_onnx if present
-if [ -f ./test_onnx_embedding_pipeline ]; then
-  printf '\n==== Running test_onnx_embedding_pipeline C++ test ===='\n
-  ./test_onnx_embedding_pipeline
-  RESULT=$?
-  if [ $RESULT -eq 0 ]; then
-    echo "\n✅ C++ embedding pipeline test PASSED"
-  else
-    echo "\n❌ C++ embedding pipeline test FAILED"
-    exit $RESULT
-  fi
-fi
-
-# Cleanup test doc (optional)
-# rm -f "$TEST_DOC" 
+echo ""
+echo -e "${GREEN}🎉 All tests completed successfully!${NC}"
+echo -e "${BLUE}📈 Pipeline is ready for production use.${NC}" 

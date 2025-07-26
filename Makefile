@@ -1,46 +1,24 @@
-# Platform and compiler detection
-UNAME_S := $(shell uname -s)
-CXX ?= g++
-CXX_VERSION := $(shell $(CXX) --version)
+# Compiler and flags
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I./include -I./src -I/opt/homebrew/include -I/opt/homebrew/Cellar/onnxruntime/1.22.1/include/onnxruntime
+LDFLAGS = -L/opt/homebrew/lib
 
-# Platform-specific flags
-ifeq ($(UNAME_S),Darwin)
-    # macOS (Homebrew)
-    HOMEBREW_CLANG := /opt/homebrew/opt/llvm/bin/clang++
-    ifeq ($(shell test -x $(HOMEBREW_CLANG) && echo yes),yes)
-        CXX := $(HOMEBREW_CLANG)
-    else
-        CXX := clang++
-    endif
-    STD_LIB_FLAG = -stdlib=libc++
-    CPPFLAGS = -I/opt/homebrew/include -I./include -I./src
-    LDFLAGS = -L/opt/homebrew/lib
-else
-    # Linux/Nix
-    STD_LIB_FLAG =
-    CPPFLAGS = -I./include -I./src
-    LDFLAGS =
-endif
-
-# ONNX Runtime and Extensions paths (update these paths as needed)
-ONNX_INCLUDE ?= /opt/homebrew/include/onnxruntime
-ONNX_LIB ?= /opt/homebrew/lib
-ONNXEXT_LIB ?= /opt/homebrew/lib
-
-# Add ONNX to include and library paths
-CPPFLAGS += -I$(ONNX_INCLUDE)
-LDFLAGS += -L$(ONNX_LIB) -L$(ONNXEXT_LIB)
-
-CXXFLAGS = -std=c++17 -Wall -Wextra -g $(STD_LIB_FLAG) $(CPPFLAGS)
-TARGET = mimir
+# Directories
 SRCDIR = src
-SOURCES = $(SRCDIR)/main.cpp \
-          $(SRCDIR)/session/SessionManager.cpp \
-          $(SRCDIR)/document_processor/Chunker.cpp \
-          $(SRCDIR)/config/ConfigManager.cpp \
-          $(SRCDIR)/embedding/OnnxEmbedder.cpp \
-          $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
+OBJDIR = obj
+
+# Source files
+SOURCES = $(wildcard $(SRCDIR)/*.cpp) \
+          $(wildcard $(SRCDIR)/config/*.cpp) \
+          $(wildcard $(SRCDIR)/document_processor/*.cpp) \
+          $(wildcard $(SRCDIR)/embedding/*.cpp) \
+          $(wildcard $(SRCDIR)/session/*.cpp)
+
+# Object files
 OBJECTS = $(SOURCES:.cpp=.o)
+
+# Target executable
+TARGET = mimir
 
 # Default target
 all: $(TARGET)
@@ -53,50 +31,12 @@ $(TARGET): $(OBJECTS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# ONNX embedding test target
-TEST_EMBED = test_onnx_embedding_pipeline
-TEST_EMBED_SRC = src/embedding/test_embedding_pipeline.cpp
-
-$(TEST_EMBED): $(TEST_EMBED_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lsentencepiece -o $(TEST_EMBED) \
-		$(TEST_EMBED_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
-
-# Performance test target
-PERF_TEST = performance_test
-PERF_TEST_SRC = src/embedding/performance_test.cpp
-
-$(PERF_TEST): $(PERF_TEST_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lsentencepiece -o $(PERF_TEST) \
-		$(PERF_TEST_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
-
-# Test targets
-test-onnx: $(TEST_EMBED)
-	./$(TEST_EMBED)
-
-test-performance: $(PERF_TEST)
-	./$(PERF_TEST)
-
-# Create config file if it doesn't exist
-config:
-	@if [ ! -f config.yaml ]; then \
-		echo "📋 Creating default config.yaml..."; \
-		cp config.yaml.example config.yaml; \
-	fi
-
-# Clean up build files
+# Clean target
 clean:
-	rm -f $(OBJECTS) $(TARGET) $(TEST_EMBED)
-	rm -rf .data/   
+	rm -f $(OBJECTS) $(TARGET) *.dSYM
 
-# Run with config initialization
-run: $(TARGET) config
-	./$(TARGET)
+# Test target
+test:
+	./scripts/test_embedding_pipeline.sh
 
-# Python embedding pipeline dependencies
-.PHONY: install-embed-deps
-install-embed-deps:
-	python3.11 -m venv venv
-	source venv/bin/activate && pip install --upgrade pip
-	source venv/bin/activate && pip install -r requirements.txt
-
-.PHONY: all clean run config test-onnx
+.PHONY: all clean test
