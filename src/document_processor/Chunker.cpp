@@ -1,16 +1,28 @@
 #include "Chunker.h"
+#include "../config/ConfigManager.h"
+#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <regex>
-#include <iostream>
+#include <cctype>
 #include <sys/stat.h>
 #include <cstdlib>
 #include <ctime>
 
+using namespace std;
+
 DocumentProcessor::DocumentProcessor() {
     // Loading configuration from existing ConfigManager
-    updateConfig();
+    auto& configManager = ConfigManager::getInstance();
+    config = configManager.getDocumentProcessingConfig();
+    
+    cout << "✅ DocumentProcessor initialized with configuration:" << endl;
+    cout << "   Chunk Size: " << config.chunk_size << " chars" << endl;
+    cout << "   Chunk Overlap: " << config.chunk_overlap << " chars" << endl;
+    cout << "   Preserve Sentences: " << (config.preserve_sentences ? "enabled" : "disabled") << endl;
+    cout << "   Preserve Paragraphs: " << (config.preserve_paragraphs ? "enabled" : "disabled") << endl;
+    cout << "   Separators: " << config.separators.size() << " configured" << endl;
 }
 
 void DocumentProcessor::updateConfig() {

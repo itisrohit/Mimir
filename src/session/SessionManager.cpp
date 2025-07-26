@@ -298,9 +298,15 @@ bool SessionManager::addDocument(const string &filePath)
         chunk_ids.push_back(textChunk.id);
     }
     // Use OnnxEmbedder with pure C++ SentencePiece tokenizer
-    string modelDir = "models/bge-m3-onnx/";
-    string tokenizerPath = modelDir + "sentencepiece.bpe.model";
-    string modelPath = modelDir + "model.onnx";
+    auto& configManager = ConfigManager::getInstance();
+    auto embeddingConfig = configManager.getEmbeddingConfig();
+    auto pathsConfig = configManager.getPathsConfig();
+    
+    // Build model paths from configuration
+    string modelDir = embeddingConfig.model;
+    string tokenizerPath = modelDir + "/" + embeddingConfig.tokenizer.model_path;
+    string modelPath = modelDir + "/model.onnx";
+    
     OnnxEmbedder embedder(tokenizerPath, modelPath);
     vector<vector<float>> embeddings = embedder.embed(chunk_texts);
     // Convert TextChunk to DocumentChunk and add to session

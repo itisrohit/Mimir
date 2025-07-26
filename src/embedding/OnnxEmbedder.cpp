@@ -1,14 +1,9 @@
 #include "OnnxEmbedder.h"
+#include "../config/ConfigManager.h"
 #include <iostream>
-#include <algorithm>
-#include <numeric>
-#include <cstdlib>
-#include <sstream>
-#include <fstream>
-#include <nlohmann/json.hpp>
+#include <chrono>
 
 using namespace std;
-using json = nlohmann::json;
 
 OnnxEmbedder::OnnxEmbedder(const string& tokenizerPath, const string& modelPath)
     : env(ORT_LOGGING_LEVEL_ERROR, "OnnxEmbedder")  // Change from WARNING to ERROR
@@ -17,15 +12,37 @@ OnnxEmbedder::OnnxEmbedder(const string& tokenizerPath, const string& modelPath)
 }
 
 void OnnxEmbedder::loadSessions(const string& tokenizerPath, const string& modelPath) {
-    // Load C++ SentencePiece tokenizer
+    // Load configuration
+    auto& config = ConfigManager::getInstance();
+    auto embeddingConfig = config.getEmbeddingConfig();
+    
+    // Load SentencePiece tokenizer
     tokenizer = make_unique<SentencePieceTokenizer>(tokenizerPath);
     
-    // Load ONNX embedding model (no custom ops needed)
+    // Configure ONNX session options
     Ort::SessionOptions modelSessionOptions;
+    
+    // Apply ONNX configuration from config
+    modelSessionOptions.SetIntraOpNumThreads(embeddingConfig.max_threads);
+    modelSessionOptions.SetInterOpNumThreads(embeddingConfig.max_threads);
+    modelSessionOptions.SetGraphOptimizationLevel(static_cast<GraphOptimizationLevel>(embeddingConfig.onnx.optimization_level));
+    
+    if (embeddingConfig.onnx.enable_mem_pattern) {
+        modelSessionOptions.EnableMemPattern();
+    }
+    if (embeddingConfig.onnx.enable_cpu_mem_arena) {
+        modelSessionOptions.EnableCpuMemArena();
+    }
+    
+    // Load ONNX model
     modelSession = make_unique<Ort::Session>(env, modelPath.c_str(), modelSessionOptions);
-    embeddingDim = 1024;
+    embeddingDim = embeddingConfig.dim;
     
     cout << "✅ SentencePiece tokenizer and ONNX embedding model loaded successfully" << endl;
+    cout << "   Tokenizer: " << embeddingConfig.tokenizer.type << endl;
+    cout << "   Model: " << modelPath << endl;
+    cout << "   Dimension: " << embeddingDim << endl;
+    cout << "   ONNX Optimization: Level " << embeddingConfig.onnx.optimization_level << endl;
 }
 
 vector<vector<float>> OnnxEmbedder::embed(const vector<string>& texts) {
@@ -34,6 +51,33 @@ vector<vector<float>> OnnxEmbedder::embed(const vector<string>& texts) {
         return {};
     }
     
+    // Load configuration for batch processing
+    auto& config = ConfigManager::getInstance();
+    auto embeddingConfig = config.getEmbeddingConfig();
+    auto performanceConfig = config.getPerformanceConfig();
+    
+    vector<vector<float>> embeddings;
+    
+    // Process in batches if configured
+    size_t batchSize = embeddingConfig.batch_size;
+    if (performanceConfig.batch_processing && texts.size() > batchSize) {
+        cout << "🔄 Processing " << texts.size() << " texts in batches of " << batchSize << endl;
+        
+        for (size_t i = 0; i < texts.size(); i += batchSize) {
+            size_t end = min(i + batchSize, texts.size());
+            vector<string> batch(texts.begin() + i, texts.begin() + end);
+            
+            auto batchEmbeddings = processBatch(batch);
+            embeddings.insert(embeddings.end(), batchEmbeddings.begin(), batchEmbeddings.end());
+        }
+    } else {
+        embeddings = processBatch(texts);
+    }
+    
+    return embeddings;
+}
+
+vector<vector<float>> OnnxEmbedder::processBatch(const vector<string>& texts) {
     vector<vector<float>> embeddings;
     
     // Tokenize all texts using C++ SentencePiece

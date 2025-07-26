@@ -34,9 +34,21 @@ $(TARGET): $(OBJECTS)
 # Clean target
 clean:
 	rm -f $(OBJECTS) $(TARGET) *.dSYM
+	rm -rf ./.data
+	rm -f test_*.txt
+	rm -f *.log
+
+# Deep clean target (removes everything including external dependencies)
+distclean: clean
+	rm -rf external/
+	rm -f flake.lock
+	rm -rf venv/
+	rm -rf models/
+	rm -f *.tmp
+	rm -f *.cache
 
 # Test target
 test:
 	./scripts/test_embedding_pipeline.sh
 
-.PHONY: all clean test
+.PHONY: all clean distclean test

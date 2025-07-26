@@ -1,10 +1,12 @@
 # Mimir Configuration File
+# This is the central configuration file that controls all components
 
 # Application Settings
 app:
   name: "Mimir"
   version: "1.0.0"
   debug: false
+  description: "High-performance document processing and embedding pipeline"
 
 # File paths and directories
 paths:
@@ -12,6 +14,7 @@ paths:
   temp_dir: "./.data/temp"
   logs_dir: "./.data/logs"
   exports_dir: "./.data/exports"
+  models_dir: "./models"
 
 # Document Processing Configuration
 document_processing:
@@ -24,6 +27,10 @@ document_processing:
   preserve_sentences: true      # Try to break at sentence boundaries
   preserve_paragraphs: true     # Try to break at paragraph boundaries
   max_file_size_mb: 100         # Maximum file size to process
+  normalize_unicode: true       # Normalize Unicode characters
+  
+  # Supported file types
+  supported_types: ["txt", "md", "pdf", "csv", "json"]
   
   # Enhanced separators for better chunking
   separators:
@@ -43,10 +50,30 @@ document_processing:
 
 # Embedding Configuration
 embedding:
-  model: models/bge-m3-onnx  # Directory containing tokenizer.onnx and model.onnx
-  dim: 1024
-  batch_size: 16
+  # Model settings
+  model: "models/bge-m3-onnx"
+  dim: 1024                     # Embedding dimension (1024 for BGE-M3)
+  batch_size: 16                # Batch size for processing
   semantic_search_enabled: true
+  
+  # Performance settings
+  enable_caching: true
+  cache_size_mb: 256
+  parallel_processing: true
+  max_threads: 4
+  
+  # Model-specific settings
+  tokenizer:
+    type: "sentencepiece"       # Tokenizer type (sentencepiece, onnx, etc.)
+    model_path: "sentencepiece.bpe.model"
+    max_length: 512             # Maximum sequence length
+  
+  # ONNX Runtime settings
+  onnx:
+    optimization_level: 1        # 0=disable, 1=basic, 2=extended
+    execution_mode: "sequential" # sequential, parallel
+    enable_mem_pattern: true
+    enable_cpu_mem_arena: true
 
 # Vector Database Configuration
 vector_db:
@@ -104,6 +131,13 @@ logging:
   console_logging: true
   max_log_size_mb: 10
   max_log_files: 5
+  
+  # Component-specific logging
+  components:
+    embedding: "INFO"
+    document_processing: "INFO"
+    session: "INFO"
+    chat: "INFO"
 
 # Performance Settings
 performance:
@@ -111,6 +145,15 @@ performance:
   cache_size_mb: 256
   parallel_processing: true
   max_threads: 4
+  
+  # Memory settings
+  max_memory_usage_mb: 2048
+  enable_memory_monitoring: true
+  
+  # Processing settings
+  batch_processing: true
+  max_batch_size: 32
+  enable_profiling: false
 
 # Export Settings
 export:
@@ -118,6 +161,15 @@ export:
   include_metadata: true
   include_timestamps: true
   include_sources: true
+  
+  # Format-specific settings
+  json:
+    pretty_print: true
+    include_embeddings: false   # Don't include embeddings in JSON export
+  
+  markdown:
+    include_headers: true
+    include_links: true
 
 # Session Settings
 session:
@@ -126,3 +178,15 @@ session:
   max_sessions: 100             # Maximum number of sessions to keep
   cleanup_old_sessions: false   # Automatically clean up old sessions
   max_session_age_days: 30      # Age after which sessions are considered old
+  
+  # Session data settings
+  include_embeddings: true      # Store embeddings in session
+  include_chat_history: true    # Store chat history in session
+  compression_enabled: false    # Compress session data
+
+# Development Settings
+development:
+  enable_debug_mode: false
+  enable_profiling: false
+  enable_memory_tracking: false
+  log_performance_metrics: false
