@@ -8,6 +8,8 @@
 
 using namespace std;
 
+class OnnxEmbedder; // Forward declaration
+
 struct DocumentChunk {
     string id;
     string content;
@@ -51,6 +53,8 @@ private:
     bool autoSaveEnabled = true;
     bool autoSaveOnDocumentAdd = true;
     bool autoSaveOnChatMessage = false;
+    
+    OnnxEmbedder* onnxEmbedder = nullptr;
     
     // Helper methods
     string generateSessionId(const string& name);

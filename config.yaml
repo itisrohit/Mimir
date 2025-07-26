@@ -43,30 +43,37 @@ document_processing:
 
 # Embedding Configuration
 embedding:
-  model: nomic-ai/nomic-embed-text-v2-moe
-  dim: 256
-  batch_size: 16
+  model: jinaai/jina-embeddings-v3
+  model_type: onnx
+  model_path: ./models/onnx/model.onnx
+  tokenizer_path: ./models
+  dim: 1024
+  batch_size: 4           # CPU-friendly batch size
   python_path: python3
-  script_path: scripts/embedding_pipeline.py
-  semantic_search_enabled: false
+  script_path: scripts/test_jina_v3_embedding_pipeline.py
+  semantic_search_enabled: true
+  task_id: 0              # retrieval.query for queries
+  max_length: 2048        # Good trade-off for most docs
+  normalize_embeddings: true
+  onnx_num_threads: 4     # Set to your CPU core count
+  query_task_id: 0        # retrieval.query
+  passage_task_id: 1      # retrieval.passage
+  similarity_threshold: 0.7
 
 # Vector Database Configuration
 vector_db:
-  type: "faiss"                 # Options: "faiss", "qdrant", "sqlite_vss"
-  
-  # FAISS settings
+  type: "faiss"
   faiss:
-    index_type: "IndexFlatIP"   # Options: "IndexFlatIP", "IndexFlatL2", "IndexIVFFlat"
-    metric: "inner_product"     # Options: "inner_product", "l2"
-    nlist: 100                  # For IVF indexes
-    
-  # Qdrant settings (for future use)
+    index_type: "IndexHNSW"   # Fast, scalable, CPU-friendly
+    metric: "inner_product"
+    m: 16                      # HNSW connections (CPU optimal)
+    ef_construction: 100       # Build quality
+    ef_search: 64              # Search quality (CPU optimal)
+    nlist: 100
   qdrant:
     host: "localhost"
     port: 6333
     collection_name: "mimir_vectors"
-    
-  # SQLite with vector search (for future use)
   sqlite_vss:
     db_path: "./.data/vectors.db"
 

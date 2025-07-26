@@ -40,11 +40,21 @@ struct DocumentProcessingConfig {
 
 struct EmbeddingConfig {
     std::string model;
+    std::string model_type; // onnx, etc.
+    std::string model_path;
+    std::string tokenizer_path;
     int dim;
     int batch_size;
     std::string python_path;
     std::string script_path;
     bool semantic_search_enabled;
+    int onnx_num_threads = 4;
+    int max_length = 2048;
+    bool normalize_embeddings = true;
+    int task_id = 0;
+    int query_task_id = 0;
+    int passage_task_id = 1;
+    float similarity_threshold = 0.7f;
 };
 
 struct VectorDbConfig {

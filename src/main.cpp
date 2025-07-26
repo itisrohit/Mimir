@@ -10,18 +10,20 @@ using namespace std;
 
 class MimirCLI {
 private:
-    SessionManager sessionManager;
+    SessionManager* sessionManager;
 
 public:
     MimirCLI() {
-        // Load configuration
+        // Load configuration FIRST
         auto& config = ConfigManager::getInstance();
         if (!config.loadConfig("config.yaml")) {
             cout << "⚠️  Using default configuration\n";
         }
-        
-        // Initialize session manager with default path (will use config)
-        sessionManager = SessionManager("");  // Empty string = use config path
+        // Now initialize session manager
+        sessionManager = new SessionManager("");
+    }
+    ~MimirCLI() {
+        delete sessionManager;
     }
 
     void printWelcome() {
@@ -97,22 +99,22 @@ public:
                     description += tokens[i] + " ";
                 }
             }
-            sessionManager.createSession(tokens[1], description);
+            sessionManager->createSession(tokens[1], description);
         }
         else if (command == "load") {
             if (tokens.size() < 2) {
                 cout << "Usage: load <session_name>\n";
                 return;
             }
-            sessionManager.loadSession(tokens[1]);
+            sessionManager->loadSession(tokens[1]);
         }
         else if (command == "close") {
-            if (!sessionManager.hasActiveSession()) {
+            if (!sessionManager->hasActiveSession()) {
                 cout << "❌ No active session to close.\n";
             } else {
-                string sessionName = sessionManager.getCurrentSessionName();
-                sessionManager.saveCurrentSession();  // Save before closing
-                sessionManager.closeSession();        // New method we need to add
+                string sessionName = sessionManager->getCurrentSessionName();
+                sessionManager->saveCurrentSession();  // Save before closing
+                sessionManager->closeSession();        // New method we need to add
                 cout << "✅ Session '" << sessionName << "' closed and saved.\n";
             }
         }
@@ -129,7 +131,7 @@ public:
             getline(cin, confirmation);
             
             if (confirmation == "y" || confirmation == "Y" || confirmation == "yes") {
-                sessionManager.deleteSession(sessionName);
+                sessionManager->deleteSession(sessionName);
             } else {
                 cout << "❌ Delete cancelled.\n";
             }
@@ -164,7 +166,7 @@ public:
             }
             
             cout << "📁 Processing file: " << filePath << "\n";
-            sessionManager.addDocument(filePath);
+            sessionManager->addDocument(filePath);
         }
         else if (command == "query") {
             if (tokens.size() < 2) {
@@ -178,25 +180,25 @@ public:
             
             // TODO: Implement actual query processing
             string answer = "This is a placeholder response for: " + question;
-            sessionManager.addChatMessage(question, answer);
+            sessionManager->addChatMessage(question, answer);
             cout << "💡 " << answer << "\n";
         }
         else if (command == "list") {
-            vector<string> sessions = sessionManager.listSessions();
+            vector<string> sessions = sessionManager->listSessions();
             if (sessions.empty()) {
                 cout << "No sessions found.\n";
             } else {
                 cout << "📋 Available sessions:\n";
                 for (const auto& session : sessions) {
-                    string marker = (session == sessionManager.getCurrentSessionName()) ? " (active)" : "";
+                    string marker = (session == sessionManager->getCurrentSessionName()) ? " (active)" : "";
                     cout << "  • " << session << marker << "\n";
                 }
             }
         }
         else if (command == "info") {
-            sessionManager.printSessionInfo();
+            sessionManager->printSessionInfo();
             // Show auto-save status
-            if (sessionManager.isAutoSaveEnabled()) {
+            if (sessionManager->isAutoSaveEnabled()) {
                 cout << "💾 Auto-save: Enabled (documents saved immediately)\n";
             } else {
                 cout << "💾 Auto-save: Disabled (manual save required)\n";
@@ -207,7 +209,7 @@ public:
                 cout << "Usage: export <session_name>\n";
                 return;
             }
-            sessionManager.exportSession(tokens[1]);
+            sessionManager->exportSession(tokens[1]);
         }
         else if (command == "config") {
             if (tokens.size() > 1) {
@@ -241,8 +243,8 @@ public:
         string input;
         while (true) {
             string prompt = "mimir";
-            if (sessionManager.hasActiveSession()) {
-                prompt += " [" + sessionManager.getCurrentSessionName() + "]";
+            if (sessionManager->hasActiveSession()) {
+                prompt += " [" + sessionManager->getCurrentSessionName() + "]";
             }
             prompt += "> ";
             

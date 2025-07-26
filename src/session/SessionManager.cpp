@@ -14,7 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <nlohmann/json.hpp> // For JSON parsing (add to your includes)
-#include "httplib.h"
+#include "../embedding/OnnxEmbedder.h"
 
 using namespace std;
 
@@ -95,12 +95,25 @@ SessionManager::SessionManager(const string &basePath)
     // Get configuration
     auto& configManager = ConfigManager::getInstance();
     auto pathsConfig = configManager.getPathsConfig();
+    auto embeddingConfig = configManager.getEmbeddingConfig();
     
     if (basePath.empty()) {
         this->baseSessionPath = pathsConfig.sessions_dir;
     } else {
         this->baseSessionPath = basePath;
     }
+    // Initialize OnnxEmbedder
+    std::cout << "[DEBUG] Initializing OnnxEmbedder with:\n"
+              << "  model_path: " << embeddingConfig.model_path << "\n"
+              << "  tokenizer_path: " << embeddingConfig.tokenizer_path << "\n"
+              << "  max_length: " << embeddingConfig.max_length << "\n"
+              << "  onnx_num_threads: " << embeddingConfig.onnx_num_threads << std::endl;
+    onnxEmbedder = new OnnxEmbedder(
+        embeddingConfig.model_path,
+        embeddingConfig.tokenizer_path,
+        embeddingConfig.max_length,
+        embeddingConfig.onnx_num_threads
+    );
     
     // 🔧 FIX: DON'T create directories in constructor
     // Only set the path, don't create anything yet
@@ -130,12 +143,10 @@ SessionManager::SessionManager(const string &basePath)
     // If directory doesn't exist, sessionCache remains empty - that's fine!
 }
 
-SessionManager::~SessionManager()
-{
-    // Save current session if it exists
-    if (hasActiveSession())
-    {
-        saveCurrentSession();
+SessionManager::~SessionManager() {
+    if (onnxEmbedder) {
+        delete onnxEmbedder;
+        onnxEmbedder = nullptr;
     }
 }
 
@@ -290,51 +301,58 @@ bool SessionManager::addDocument(const string &filePath)
         cout << "❌ Failed to process document or document is empty.\n";
         return false;
     }
-    // Batch all chunks for embedding
-    std::vector<std::string> chunk_texts, chunk_ids;
+    
+    // Pre-allocate vectors for better performance
+    std::vector<std::string> chunk_texts;
+    chunk_texts.reserve(textChunks.size());
+    
     for (const auto& textChunk : textChunks) {
         chunk_texts.push_back(textChunk.content);
-        chunk_ids.push_back(textChunk.id);
     }
-    nlohmann::json req;
-    req["texts"] = chunk_texts;
-    req["ids"] = chunk_ids;
-    // Send POST request to embedding server
-    httplib::Client cli("127.0.0.1", 8000);
-    auto res = cli.Post("/embed", req.dump(), "application/json");
-    if (!res || res->status != 200) {
-        std::cerr << "Failed to get embeddings from server. Status: " << (res ? res->status : 0) << std::endl;
+    
+    // Get embeddings in a single batch call
+    std::vector<std::vector<float>> embeddings;
+    try {
+        cout << "🔍 Generating embeddings for " << chunk_texts.size() << " chunks..." << endl;
+        auto start_time = chrono::high_resolution_clock::now();
+        
+        embeddings = onnxEmbedder->get_embeddings(chunk_texts);
+        
+        auto end_time = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
+        cout << "✅ Embeddings generated in " << duration.count() << "ms" << endl;
+        
+    } catch (const std::exception& ex) {
+        std::cerr << "Failed to get embeddings from ONNX model: " << ex.what() << std::endl;
         return false;
     }
-    // Parse JSON response
-    nlohmann::json resp = nlohmann::json::parse(res->body);
-    std::unordered_map<std::string, std::vector<float>> idToEmbedding;
-    for (const auto& item : resp) {
-        idToEmbedding[item["id"]] = item["embedding"].get<std::vector<float>>();
+    
+    if (embeddings.size() != chunk_texts.size()) {
+        std::cerr << "Embedding count mismatch: got " << embeddings.size() << ", expected " << chunk_texts.size() << std::endl;
+        return false;
     }
+    
     // Convert TextChunk to DocumentChunk and add to session
-    for (const auto& textChunk : textChunks) {
+    // Pre-allocate space for better performance
+    currentDocChunks.reserve(currentDocChunks.size() + textChunks.size());
+    
+    for (size_t i = 0; i < textChunks.size(); ++i) {
+        const auto& textChunk = textChunks[i];
         DocumentChunk chunk;
         chunk.id = textChunk.id;
-        chunk.content = textChunk.content;
+        chunk.content = std::move(textChunk.content); // Move instead of copy
         chunk.source_file = textChunk.source_file;
         chunk.chunk_index = textChunk.chunk_index;
         chunk.start_position = textChunk.start_position;
         chunk.end_position = textChunk.end_position;
-        // Attach embedding
-        if (idToEmbedding.count(chunk.id)) {
-            chunk.embedding = idToEmbedding[chunk.id];
-        }
-        currentDocChunks.push_back(chunk);
+        chunk.embedding = std::move(embeddings[i]); // Move instead of copy
+        currentDocChunks.push_back(std::move(chunk)); // Move the chunk
     }
 
     // Add to metadata
     currentMetadata.documents.push_back(filePath);
     currentMetadata.total_chunks = currentDocChunks.size();
     currentMetadata.last_modified = getCurrentTimestamp();
-
-    // Debug: print currentDocChunks size before saving
-    cout << "DEBUG: currentDocChunks size before save: " << currentDocChunks.size() << endl;
 
     // 🎯 HYBRID AUTO-SAVE: Save immediately for better UX
     if (autoSaveIfEnabled("document_add")) {

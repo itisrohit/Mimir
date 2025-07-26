@@ -123,11 +123,21 @@ void ConfigManager::applyConfig(const string& section, const string& subsection,
     else if (section == "embedding") {
         if (subsection.empty()) {
             if (key == "model") embedding.model = value;
+            else if (key == "model_type") embedding.model_type = value;
+            else if (key == "model_path") embedding.model_path = value;
+            else if (key == "tokenizer_path") embedding.tokenizer_path = value;
             else if (key == "dim") embedding.dim = stoi(value);
             else if (key == "batch_size") embedding.batch_size = stoi(value);
             else if (key == "python_path") embedding.python_path = value;
             else if (key == "script_path") embedding.script_path = value;
             else if (key == "semantic_search_enabled") embedding.semantic_search_enabled = (value == "true");
+            else if (key == "onnx_num_threads") embedding.onnx_num_threads = stoi(value);
+            else if (key == "max_length") embedding.max_length = stoi(value);
+            else if (key == "normalize_embeddings") embedding.normalize_embeddings = (value == "true");
+            else if (key == "task_id") embedding.task_id = stoi(value);
+            else if (key == "query_task_id") embedding.query_task_id = stoi(value);
+            else if (key == "passage_task_id") embedding.passage_task_id = stoi(value);
+            else if (key == "similarity_threshold") embedding.similarity_threshold = stof(value);
         }
         // No provider_settings or subsections for embedding
     }

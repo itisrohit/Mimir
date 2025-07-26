@@ -1,109 +1,194 @@
 # Mimir
 
-## Overview
-Mimir is a document processing and embedding pipeline that supports high-quality semantic search and retrieval. It currently uses the state-of-the-art `nomic-ai/nomic-embed-text-v2-moe` embedding model for best-in-class embedding quality.
+⚡ The smartest way to talk to your data ⚡
 
 ---
 
-## Development Environment (Recommended: Nix + venv)
+## 🚀 Quick Start (Cross-Platform)
 
-You can use Nix to get a fully reproducible development environment with all system dependencies (Python, pip, gcc, make, PDF tools, etc). Python packages are still managed with a local venv for maximum compatibility.
+> **Recommended:** For most users, run the automated setup script:
+> ```bash
+> bash scripts/setup_env.sh
+> ```
+> This will install system dependencies, build tokenizers-cpp, and download the Jina model/tokenizer for you (macOS/Linux). See below for manual steps or if you are using Windows or Nix.
+>
+> **Nix users:** You can use the provided `flake.nix` and `flake.lock` for reproducible builds. (Nix support is experimental and may require updates.)
 
-### Quick Start (Nix)
+### Prerequisites
+- C++17 compiler (GCC, Clang, or MSVC)
+- Python 3.11+ (for model download/check scripts)
+- CMake (for building tokenizers-cpp)
+- Git (for submodules)
 
-1. **Enter the Nix dev shell:**
-   ```sh
-   nix develop
-   ```
-2. **Activate your Python venv:**
-   ```sh
-   source venv/bin/activate
-   ```
-   If you don't have a venv yet, it will be auto-created the first time you enter the Nix shell, or you can create it manually:
-   ```sh
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-3. **Install Python dependencies:**
-   ```sh
-   pip install -r requirements.txt
-   ```
-4. **Run your usual commands:**
-   ```sh
-   make
-   make embedding-server
-   bash scripts/test_embedding_pipeline.sh
-   # etc.
-   ```
+### 1. Install System Dependencies
 
----
+#### **macOS (Homebrew):**
+```bash
+brew install cmake onnxruntime
+# For tokenizers-cpp, you need Rust and Ninja:
+brew install rust ninja
+```
 
-## Local (Non-Nix) Setup
+#### **Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install build-essential cmake python3 python3-pip git ninja-build
+# ONNX Runtime (download prebuilt from https://onnxruntime.ai/ or build from source)
+# For tokenizers-cpp, you need Rust:
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 
-If you don't use Nix, you can still set up manually:
+#### **Windows:**
+- Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- Install [CMake](https://cmake.org/download/)
+- Install [ONNX Runtime for Windows](https://onnxruntime.ai/)
+- Install [Rust](https://rustup.rs/)
+- Install [Ninja](https://ninja-build.org/)
 
-```sh
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+### 2. Clone and Prepare the Repo
+```bash
+git clone <repository-url>
+cd Mimir
+# If using submodules (for tokenizers-cpp):
+git submodule update --init --recursive
+```
+
+### 3. Download Model and Tokenizer
+```bash
+# Use the provided script (edit paths as needed):
+python3 scripts/download_jina_v3_with_check.py
+```
+
+### 4. Build tokenizers-cpp (if not using system package)
+```bash
+# Clone and build mlc-ai/tokenizers-cpp (see https://github.com/mlc-ai/tokenizers-cpp)
+git clone https://github.com/mlc-ai/tokenizers-cpp.git
+cd tokenizers-cpp
+git submodule update --init --recursive
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+sudo make install
+cd ../..
+```
+
+### 5. Build Mimir
+```bash
+make clean && make
+```
+
+### 6. Test the ONNX Embedding Pipeline
+```bash
+make test-onnx-full
+./test_onnx_embedding_pipeline
 ```
 
 ---
 
-## Notes
-- The Nix shell provides all system tools (compilers, PDF tools, etc) so you don't need to install them globally.
-- Python dependencies are managed with pip/venv for compatibility with most Python tooling.
-- The Nix shell prints a welcome message and tool versions on entry.
-- Your `venv/` and `models/` directories are ignored by git and Cursor IDE.
+## 🛠️ Troubleshooting
+- **Linker errors for ONNX/tokenizers:** Double-check your `Makefile` include and lib paths. Use `ls /usr/local/lib` and `ls /opt/homebrew/lib` to verify.
+- **tokenizers-cpp build errors:** Ensure Rust, Ninja, and CMake are installed. Run `git submodule update --init --recursive` in the tokenizers-cpp directory.
+- **ONNX Runtime not found:** Download the prebuilt binaries from [onnxruntime.ai](https://onnxruntime.ai/) or install via package manager.
+- **Model output name errors:** Use Netron or the debug printout to find the correct ONNX output name (e.g., `text_embeds`).
+- **task_id errors:** The Jina v3 model requires a `task_id` input. This is handled in the C++ code, but if you use a different model, check its input signature.
 
 ---
 
-## Current Features
-- High-quality embeddings using `nomic-ai/nomic-embed-text-v2-moe`
-- FastAPI-based persistent embedding server (model loaded once, batched requests, auto-downloads model if needed)
-- C++ pipeline with chunking, session management, and HTTP embedding calls
-- Test script for end-to-end validation and benchmarking
+## Features
 
----
+- **Document Processing**: Support for TXT, PDF, Markdown files with intelligent chunking
+- **Semantic Search**: Vector-based document retrieval using embeddings
+- **Session Management**: Persistent sessions with auto-save functionality
+- **ONNX Embedding Integration**: Direct C++ embedding generation using ONNX Runtime and HuggingFace Tokenizers
+- **Cross-Platform**: Works on macOS, Linux, and Windows
 
-## TODO / Future Improvements
-- [ ] **Hardware Detection:** Automatically detect CPU/GPU and select the best embedding model for the hardware
-- [ ] **Configurable Embedding Model:** Allow users to set the embedding model in `config.yaml` (already partially supported)
-- [ ] **ONNX Runtime Support:** Convert and serve embedding models via ONNX Runtime for faster CPU inference
-- [ ] **Model Quantization:** Support INT8/FP16 quantized models for even faster inference on CPU/GPU
-- [ ] **User Model Selection:** Let users choose between "Best Quality" and "Fastest" embeddings at runtime
-- [ ] **Efficient Storage:** Use binary formats (e.g., Parquet, npy) for large embedding tables
-- [ ] **Profiling and Monitoring:** Add profiling hooks to measure and optimize pipeline bottlenecks
-- [ ] **Batching and Streaming:** Support streaming and larger batch sizes for high-throughput scenarios
+## Usage
 
----
+### Basic Commands
 
-For questions or contributions, please open an issue or pull request!
+- `init <session_name>` - Create a new session
+- `add-doc <file_path>` - Add a document to the current session
+- `query <question>` - Ask a question about your documents
+- `list` - List all sessions
+- `info` - Show current session information
+- `export <session_name>` - Export a session
+- `quit` - Exit the application
 
-## C++/CPR Compatibility on macOS (Homebrew + Nix)
+### Example Workflow
 
-**Note for macOS users:**
+```bash
+# Start Mimir
+./mimir
 
-This project uses cpp-httplib for HTTP. To ensure compatibility, you must use Homebrew’s clang++ and cpp-httplib:
+# Create a session
+mimir> init my_documents
 
-1. **Install cpp-httplib and LLVM via Homebrew:**
-   ```sh
-   brew install cpp-httplib llvm
-   ```
-2. **Build as usual:**
-   ```sh
-   make clean && make
-   ```
-   The Makefile will auto-detect and use Homebrew’s clang++ if available, ensuring ABI compatibility with Homebrew's cpp-httplib.
-3. **If you see linker errors about missing cpp-httplib symbols:**
-   - Make sure you are not using Nix’s g++ to build.
-   - The Makefile will fall back to system clang++ if Homebrew's is not found, but you may need to adjust your PATH or install Homebrew's LLVM.
+# Add documents
+mimir> add-doc document1.pdf
+mimir> add-doc document2.txt
 
-**On Linux/Nix:**
-- The build uses g++ or clang++ and system/Nix-provided libraries as usual.
+# Ask questions
+mimir> query What is the main topic of the documents?
 
-**Summary:**
-- Do not mix Nix GCC and Homebrew cpp-httplib on macOS.
-- Use Homebrew’s clang++ and cpp-httplib together for ABI compatibility.
-- The Makefile auto-selects the best compiler for your environment.
+# Export results
+mimir> export my_documents
+```
+
+## Architecture
+
+### Core Components
+
+- **DocumentProcessor**: Handles file parsing and chunking
+- **OnnxEmbedder**: Generates embeddings using ONNX Runtime
+- **SessionManager**: Manages sessions and document storage
+- **ConfigManager**: Handles configuration loading and validation
+
+### Embedding Pipeline
+
+1. **Document Chunking**: Text is split into semantic chunks
+2. **Tokenization**: Chunks are tokenized using HuggingFace Tokenizers
+3. **ONNX Inference**: Embeddings are generated using ONNX Runtime
+4. **Storage**: Embeddings are stored with document chunks for retrieval
+
+## Development
+
+### Building from Source
+
+```bash
+# Clean build
+make clean
+
+# Build with debug symbols
+make CXXFLAGS="-g -O0"
+
+# Build with optimizations
+make CXXFLAGS="-O3"
+```
+
+### Testing
+
+```bash
+# Test the embedding pipeline
+make test-onnx
+
+# Run integration tests
+bash scripts/test_workflow.sh
+```
+
+## Configuration
+
+Edit `config.yaml` to customize:
+
+- Document processing settings (chunk size, overlap)
+- Embedding model parameters
+- Vector database settings
+- Performance options
+
+## License
+
+[Add your license information here]
+
+## Contributing
+
+[Add contribution guidelines here]
 
