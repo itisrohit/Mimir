@@ -38,7 +38,8 @@ SOURCES = $(SRCDIR)/main.cpp \
           $(SRCDIR)/session/SessionManager.cpp \
           $(SRCDIR)/document_processor/Chunker.cpp \
           $(SRCDIR)/config/ConfigManager.cpp \
-          $(SRCDIR)/embedding/OnnxEmbedder.cpp
+          $(SRCDIR)/embedding/OnnxEmbedder.cpp \
+          $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target
@@ -46,7 +47,7 @@ all: $(TARGET)
 
 # Build the target executable
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) $(LDFLAGS) -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lonnxruntime_extensions -o $(TARGET)
+	$(CXX) $(OBJECTS) $(LDFLAGS) -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lsentencepiece -o $(TARGET)
 
 # Compile source files
 %.o: %.cpp
@@ -56,15 +57,24 @@ $(TARGET): $(OBJECTS)
 TEST_EMBED = test_onnx_embedding_pipeline
 TEST_EMBED_SRC = src/embedding/test_embedding_pipeline.cpp
 
-$(TEST_EMBED): $(TEST_EMBED_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lonnxruntime_extensions -o $(TEST_EMBED) \
-		$(TEST_EMBED_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp
+$(TEST_EMBED): $(TEST_EMBED_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lsentencepiece -o $(TEST_EMBED) \
+		$(TEST_EMBED_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
 
-.PHONY: test-onnx
-# Build and run the ONNX embedding pipeline test
+# Performance test target
+PERF_TEST = performance_test
+PERF_TEST_SRC = src/embedding/performance_test.cpp
 
+$(PERF_TEST): $(PERF_TEST_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -Wl,-rpath,/opt/homebrew/lib -lonnxruntime -lsentencepiece -o $(PERF_TEST) \
+		$(PERF_TEST_SRC) $(SRCDIR)/embedding/OnnxEmbedder.cpp $(SRCDIR)/embedding/SentencePieceTokenizer.cpp
+
+# Test targets
 test-onnx: $(TEST_EMBED)
 	./$(TEST_EMBED)
+
+test-performance: $(PERF_TEST)
+	./$(PERF_TEST)
 
 # Create config file if it doesn't exist
 config:
