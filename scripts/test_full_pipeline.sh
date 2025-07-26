@@ -5,11 +5,24 @@ set -e
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 TEST_DOC="test_long_document.txt"
 SESSION_NAME="test_session_$(date +%s)"
-MIMIR_EXEC="./mimir"
+
+# Try to find Mimir executable in order of preference
+if [ -f "./dist/mimir" ]; then
+    MIMIR_EXEC="./dist/mimir"
+elif [ -f "./mimir" ]; then
+    MIMIR_EXEC="./mimir"
+else
+    echo -e "${RED}❌ Mimir executable not found!${NC}"
+    echo -e "${YELLOW}💡 Try running: make install${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}🔧 Using Mimir executable: $MIMIR_EXEC${NC}"
 
 # 1. Create a long .txt document
 echo -e "${BLUE}📝 Creating a long test document...${NC}"

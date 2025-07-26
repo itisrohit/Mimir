@@ -73,29 +73,54 @@ cd Mimir
 make clean && make
 ```
 
+## Build System
+
+Mimir uses a modern build system with a `dist` directory for compiled artifacts:
+
+```bash
+# Build the application (creates dist/mimir)
+make
+
+# Run the built application
+make run
+
+# Install a symlink in current directory
+make install
+
+# Show build information
+make info
+
+# Clean build artifacts
+make clean
+
+# Deep clean (removes all generated files)
+make distclean
+```
+
 ## Testing
 
 Run the comprehensive test suite:
 
 ```bash
 # Run the complete pipeline test
-./scripts/test_embedding_pipeline.sh
+make test
 ```
 
 This will:
-- ✅ Check model files
-- ✅ Build the test executable (temporarily)
-- ✅ Run performance tests
-- ✅ Display timing metrics
+- ✅ Build the application
+- ✅ Create test documents
+- ✅ Process documents through the pipeline
+- ✅ Verify session data
 - ✅ Clean up automatically
 
 ## Usage
 
 ```bash
-# Build the main application
-make
+# Build and run
+make run
 
-# Run with configuration
+# Or install and run
+make install
 ./mimir
 ```
 
