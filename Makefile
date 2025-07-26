@@ -23,12 +23,17 @@ else
 endif
 
 CXXFLAGS = -std=c++17 -Wall -Wextra -g $(STD_LIB_FLAG) $(CPPFLAGS)
+
+# ONNX Runtime flags
+ONNX_INCLUDE = -I/opt/homebrew/include/onnxruntime
+ONNX_LIB = -L/opt/homebrew/lib -lonnxruntime
 TARGET = mimir
 SRCDIR = src
 SOURCES = $(SRCDIR)/main.cpp \
           $(SRCDIR)/session/SessionManager.cpp \
           $(SRCDIR)/document_processor/Chunker.cpp \
-          $(SRCDIR)/config/ConfigManager.cpp
+          $(SRCDIR)/config/ConfigManager.cpp \
+          $(SRCDIR)/embedding/ONNXEmbeddingManager.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target
@@ -36,11 +41,11 @@ all: $(TARGET)
 
 # Build the target executable
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) $(LDFLAGS) -o $(TARGET)
+	$(CXX) $(OBJECTS) $(LDFLAGS) $(ONNX_LIB) -o $(TARGET)
 
 # Compile source files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(ONNX_INCLUDE) -c $< -o $@
 
 # Create config file if it doesn't exist
 config:
@@ -83,3 +88,11 @@ clean-models:
 embedding-server:
 	@echo "Starting embedding server..."
 	@source venv/bin/activate && uvicorn embedding_server:app --host 127.0.0.1 --port 8000
+
+# Test ONNX C++ integration
+.PHONY: test-onnx
+test-onnx: $(TARGET)
+	@echo "🧪 Testing ONNX C++ integration..."
+	@$(CXX) $(CXXFLAGS) $(ONNX_INCLUDE) scripts/test_onnx_cpp.cpp $(SRCDIR)/embedding/ONNXEmbeddingManager.cpp $(LDFLAGS) $(ONNX_LIB) -o test_onnx
+	@./test_onnx
+	@rm -f test_onnx
