@@ -36,16 +36,20 @@ SOURCES = $(SRCDIR)/main.cpp \
           $(SRCDIR)/embedding/ONNXEmbeddingManager.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
+# Tokenizers-cpp flags
+TOKENIZERS_CPP_INCLUDE = -I./external/tokenizers-cpp/include
+TOKENIZERS_CPP_LIB = -L./external/tokenizers-cpp/build -L./external/tokenizers-cpp/rust/target/release -ltokenizers_cpp -ltokenizers_c ./external/tokenizers-cpp/build/sentencepiece/src/libsentencepiece.a
+
 # Default target
 all: $(TARGET)
 
 # Build the target executable
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) $(LDFLAGS) $(ONNX_LIB) -o $(TARGET)
+	$(CXX) $(OBJECTS) $(LDFLAGS) $(ONNX_LIB) $(TOKENIZERS_CPP_LIB) -o $(TARGET)
 
 # Compile source files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(ONNX_INCLUDE) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(ONNX_INCLUDE) $(TOKENIZERS_CPP_INCLUDE) -c $< -o $@
 
 # Create config file if it doesn't exist
 config:
@@ -93,6 +97,6 @@ embedding-server:
 .PHONY: test-onnx
 test-onnx: $(TARGET)
 	@echo "🧪 Testing ONNX C++ integration..."
-	@$(CXX) $(CXXFLAGS) $(ONNX_INCLUDE) scripts/test_onnx_cpp.cpp $(SRCDIR)/embedding/ONNXEmbeddingManager.cpp $(LDFLAGS) $(ONNX_LIB) -o test_onnx
+	@$(CXX) $(CXXFLAGS) $(ONNX_INCLUDE) $(TOKENIZERS_CPP_INCLUDE) scripts/test_onnx_cpp.cpp $(SRCDIR)/embedding/ONNXEmbeddingManager.cpp $(LDFLAGS) $(ONNX_LIB) $(TOKENIZERS_CPP_LIB) -o test_onnx
 	@./test_onnx
 	@rm -f test_onnx

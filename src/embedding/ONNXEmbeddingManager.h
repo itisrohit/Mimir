@@ -6,6 +6,7 @@
 #include <memory>
 #include <onnxruntime_cxx_api.h>
 #include <nlohmann/json.hpp>
+// REMOVED: #include "../../external/tokenizers-cpp/include/tokenizers_cpp.h"
 
 using namespace std;
 using json = nlohmann::json;
@@ -39,29 +40,33 @@ public:
     void printEmbeddingInfo(const EmbeddingResult& result);
 
 private:
-    // ONNX Runtime session
-    unique_ptr<Ort::Session> session;
+    // ONNX Runtime sessions
+    std::unique_ptr<Ort::Session> session; // Embedding model
+    std::unique_ptr<Ort::Session> tokenizer_session; // Tokenizer model
     Ort::Env env;
+    Ort::SessionOptions session_options;
+    Ort::SessionOptions tokenizer_session_options;
     
     // Model configuration
     size_t embedding_dim;
     size_t max_sequence_length;
     bool model_loaded;
+    bool tokenizer_loaded;
     
     // Input/output names
-    vector<string> input_names;
-    vector<string> output_names;
-    
-    // Tokenizer data
-    json tokenizer_config;
-    json vocab;
-    vector<string> merges;
+    std::vector<std::string> input_names;
+    std::vector<std::string> output_names;
+    std::vector<std::string> tokenizer_input_names;
+    std::vector<std::string> tokenizer_output_names;
     
     // Tokenization methods
-    vector<int64_t> tokenize(const string& text);
+    bool loadTokenizer(const std::string& tokenizer_path);
+    bool loadModel(const std::string& model_path);
+    void runTokenizer(const std::string& text, std::vector<int64_t>& input_ids, std::vector<int64_t>& attention_mask);
     
     // Helper methods
-    bool loadTokenizer(const string& tokenizer_path);
+    // REMOVED: std::unique_ptr<tokenizers::Tokenizer> tokenizer;
+    // REMOVED: std::vector<int64_t> tokenize(const std::string& text);
 };
 
 #endif // ONNX_EMBEDDING_MANAGER_H 
