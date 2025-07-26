@@ -7,9 +7,10 @@ A high-performance C++ document processing and embedding pipeline using Sentence
 - **Pure C++ Implementation**: No Python runtime dependencies
 - **High-Performance**: 5-10x faster than Python alternatives
 - **SentencePiece Tokenization**: Native C++ tokenizer integration
-- **ONNX Runtime**: Efficient neural network inference
+- **ONNX Runtime**: Efficient neural network inference (no extensions needed)
 - **Batch Processing**: Optimized for throughput
 - **Memory Efficient**: Low memory footprint
+- **Lightweight**: No external dependencies or conversion tools needed
 
 ## Performance
 
@@ -172,7 +173,7 @@ Edit `config.yaml` to customize:
 
 - [ ] **Hardware Detection:** Automatically detect CPU/GPU and select the best embedding model for the hardware
 - [ ] **Configurable Embedding Model:** Allow users to set the embedding model in `config.yaml` (already partially supported)
-- [ ] **ONNX Runtime Support:** Convert and serve embedding models via ONNX Runtime for faster CPU inference
+- [x] **ONNX Runtime Support:** ✅ Convert and serve embedding models via ONNX Runtime for faster CPU inference
 - [ ] **Model Quantization:** Support INT8/FP16 quantized models for even faster inference on CPU/GPU
 - [ ] **User Model Selection:** Let users choose between "Best Quality" and "Fastest" embeddings at runtime
 - [ ] **Efficient Storage:** Use binary formats (e.g., Parquet, npy) for large embedding tables

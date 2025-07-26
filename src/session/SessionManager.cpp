@@ -297,12 +297,11 @@ bool SessionManager::addDocument(const string &filePath)
         chunk_texts.push_back(textChunk.content);
         chunk_ids.push_back(textChunk.id);
     }
-    // Use OnnxEmbedder instead of API
+    // Use OnnxEmbedder with pure C++ SentencePiece tokenizer
     string modelDir = "models/bge-m3-onnx/";
-    string tokenizerPath = modelDir + "tokenizer.onnx";
+    string tokenizerPath = modelDir + "sentencepiece.bpe.model";
     string modelPath = modelDir + "model.onnx";
-    string ortExtensionsPath = "venv/lib/python3.11/site-packages/onnxruntime_extensions/libonnxruntime_extensions.so"; // Adjust for your environment
-    OnnxEmbedder embedder(tokenizerPath, modelPath, ortExtensionsPath);
+    OnnxEmbedder embedder(tokenizerPath, modelPath);
     vector<vector<float>> embeddings = embedder.embed(chunk_texts);
     // Convert TextChunk to DocumentChunk and add to session
     for (size_t i = 0; i < textChunks.size(); ++i) {
