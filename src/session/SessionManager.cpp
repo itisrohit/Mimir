@@ -14,12 +14,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <nlohmann/json.hpp> // For JSON parsing (add to your includes)
-#include "httplib.h"
 #include "../embedding/OnnxEmbedder.h"
 
 using namespace std;
 
-// Requires: cpp-httplib (https://github.com/yhirose/cpp-httplib)
+
 // Helper functions to replace filesystem operations
 bool path_exists(const string& path) {
     struct stat buffer;

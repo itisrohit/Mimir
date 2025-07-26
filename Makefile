@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I./include -I./src -I/opt/homebrew/include -I/opt/homebrew/Cellar/onnxruntime/1.22.1/include/onnxruntime
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I./src -I/opt/homebrew/include -I/opt/homebrew/Cellar/onnxruntime/1.22.1/include/onnxruntime
 LDFLAGS = -L/opt/homebrew/lib
 
 # Directories
@@ -41,7 +41,6 @@ clean:
 # Deep clean target (removes everything including external dependencies)
 distclean: clean
 	rm -rf external/
-	rm -f flake.lock
 	rm -rf venv/
 	rm -rf models/
 	rm -f *.tmp
