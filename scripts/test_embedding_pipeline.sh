@@ -25,19 +25,24 @@ Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deseru
 $(for i in {1..100}; do echo "This is line $i of the large test document. The quick brown fox jumps over the lazy dog."; done)
 EOF
 
-# 2. Run Mimir CLI to create session, add doc, and close in a single process, timing the whole pipeline
+# 2. Build the project and test embedding pipeline
+printf '\n==== Building main project and test_onnx ===='\n
+make all
+make test-onnx
+
+# 3. Run Mimir CLI to create session, add doc, and close in a single process, timing the whole pipeline
 START_TOTAL=$(date +%s)
 echo -e "init $SESSION_NAME\nadd-doc $TEST_DOC\ninfo\nclose\nquit" | ./mimir
 END_TOTAL=$(date +%s)
 
-# 3. Find the latest session directory
+# 4. Find the latest session directory
 SESSION_DIR=$(find .data/sessions -type d -name "${SESSION_NAME}_*" | sort | tail -1)
 if [ -z "$SESSION_DIR" ]; then
   echo "❌ Session directory not found!"
   exit 1
 fi
 
-# 4. Check for doc_chunks.json and metadata.json
+# 5. Check for doc_chunks.json and metadata.json
 if [ ! -f "$SESSION_DIR/doc_chunks.json" ]; then
   echo "❌ doc_chunks.json not found in $SESSION_DIR"
   exit 1
@@ -47,7 +52,7 @@ if [ ! -f "$SESSION_DIR/metadata.json" ]; then
   exit 1
 fi
 
-# 5. Parse doc_chunks.json to verify embeddings
+# 6. Parse doc_chunks.json to verify embeddings
 EMBEDDING_COUNT=$(jq '[.chunks[] | select(.embedding != null and (.embedding | length) > 0)] | length' "$SESSION_DIR/doc_chunks.json")
 CHUNK_COUNT=$(jq '.chunks | length' "$SESSION_DIR/doc_chunks.json")
 if [ "$EMBEDDING_COUNT" -eq "$CHUNK_COUNT" ]; then
@@ -57,10 +62,23 @@ else
   exit 1
 fi
 
-# 6. Print summary and timing benchmarks
+# 7. Print summary and timing benchmarks
 echo "[PASS] Embedding pipeline integration test succeeded."
 echo "--- Benchmark Results ---"
 echo "Total pipeline: $((END_TOTAL - START_TOTAL)) s"
+
+# 8. Optionally run the C++ test_onnx if present
+if [ -f ./test_onnx_embedding_pipeline ]; then
+  printf '\n==== Running test_onnx_embedding_pipeline C++ test ===='\n
+  ./test_onnx_embedding_pipeline
+  RESULT=$?
+  if [ $RESULT -eq 0 ]; then
+    echo "\n✅ C++ embedding pipeline test PASSED"
+  else
+    echo "\n❌ C++ embedding pipeline test FAILED"
+    exit $RESULT
+  fi
+fi
 
 # Cleanup test doc (optional)
 # rm -f "$TEST_DOC" 

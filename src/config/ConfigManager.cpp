@@ -125,8 +125,6 @@ void ConfigManager::applyConfig(const string& section, const string& subsection,
             if (key == "model") embedding.model = value;
             else if (key == "dim") embedding.dim = stoi(value);
             else if (key == "batch_size") embedding.batch_size = stoi(value);
-            else if (key == "python_path") embedding.python_path = value;
-            else if (key == "script_path") embedding.script_path = value;
             else if (key == "semantic_search_enabled") embedding.semantic_search_enabled = (value == "true");
         }
         // No provider_settings or subsections for embedding
@@ -186,12 +184,15 @@ void ConfigManager::setDefaults() {
 }
 
 void ConfigManager::printConfig() const {
-    cout << "\n📋 CURRENT CONFIGURATION:\n";
+    cout << "\n\U0001F4CB CURRENT CONFIGURATION:\n";
     cout << "App: " << app.name << " v" << app.version << "\n";
     cout << "Sessions Dir: " << paths.sessions_dir << "\n";
     cout << "Chunk Size: " << document_processing.chunk_size << "\n";
     cout << "Chunk Overlap: " << document_processing.chunk_overlap << "\n";
     cout << "Embedding Model: " << embedding.model << "\n";
+    cout << "Embedding Dim: " << embedding.dim << "\n";
+    cout << "Embedding Batch Size: " << embedding.batch_size << "\n";
+    cout << "Semantic Search Enabled: " << (embedding.semantic_search_enabled ? "true" : "false") << "\n";
     cout << "Vector DB: " << vector_db.type << "\n";
     cout << "Chat Provider: " << chat.provider << "\n";
     cout << "Chat Model: " << chat.model << "\n";

@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <nlohmann/json.hpp> // For JSON parsing (add to your includes)
 #include "httplib.h"
+#include "../embedding/OnnxEmbedder.h"
 
 using namespace std;
 
@@ -291,51 +292,39 @@ bool SessionManager::addDocument(const string &filePath)
         return false;
     }
     // Batch all chunks for embedding
-    std::vector<std::string> chunk_texts, chunk_ids;
+    vector<string> chunk_texts, chunk_ids;
     for (const auto& textChunk : textChunks) {
         chunk_texts.push_back(textChunk.content);
         chunk_ids.push_back(textChunk.id);
     }
-    nlohmann::json req;
-    req["texts"] = chunk_texts;
-    req["ids"] = chunk_ids;
-    // Send POST request to embedding server
-    httplib::Client cli("127.0.0.1", 8000);
-    auto res = cli.Post("/embed", req.dump(), "application/json");
-    if (!res || res->status != 200) {
-        std::cerr << "Failed to get embeddings from server. Status: " << (res ? res->status : 0) << std::endl;
-        return false;
-    }
-    // Parse JSON response
-    nlohmann::json resp = nlohmann::json::parse(res->body);
-    std::unordered_map<std::string, std::vector<float>> idToEmbedding;
-    for (const auto& item : resp) {
-        idToEmbedding[item["id"]] = item["embedding"].get<std::vector<float>>();
-    }
+    // Use OnnxEmbedder instead of API
+    string modelDir = "models/bge-m3-onnx/";
+    string tokenizerPath = modelDir + "tokenizer.onnx";
+    string modelPath = modelDir + "model.onnx";
+    string ortExtensionsPath = "venv/lib/python3.11/site-packages/onnxruntime_extensions/libonnxruntime_extensions.so"; // Adjust for your environment
+    OnnxEmbedder embedder(tokenizerPath, modelPath, ortExtensionsPath);
+    vector<vector<float>> embeddings = embedder.embed(chunk_texts);
     // Convert TextChunk to DocumentChunk and add to session
-    for (const auto& textChunk : textChunks) {
+    for (size_t i = 0; i < textChunks.size(); ++i) {
         DocumentChunk chunk;
-        chunk.id = textChunk.id;
-        chunk.content = textChunk.content;
-        chunk.source_file = textChunk.source_file;
-        chunk.chunk_index = textChunk.chunk_index;
-        chunk.start_position = textChunk.start_position;
-        chunk.end_position = textChunk.end_position;
+        chunk.id = textChunks[i].id;
+        chunk.content = textChunks[i].content;
+        chunk.source_file = textChunks[i].source_file;
+        chunk.chunk_index = textChunks[i].chunk_index;
+        chunk.start_position = textChunks[i].start_position;
+        chunk.end_position = textChunks[i].end_position;
         // Attach embedding
-        if (idToEmbedding.count(chunk.id)) {
-            chunk.embedding = idToEmbedding[chunk.id];
+        if (i < embeddings.size()) {
+            chunk.embedding = embeddings[i];
         }
         currentDocChunks.push_back(chunk);
     }
-
     // Add to metadata
     currentMetadata.documents.push_back(filePath);
     currentMetadata.total_chunks = currentDocChunks.size();
     currentMetadata.last_modified = getCurrentTimestamp();
-
     // Debug: print currentDocChunks size before saving
     cout << "DEBUG: currentDocChunks size before save: " << currentDocChunks.size() << endl;
-
     // 🎯 HYBRID AUTO-SAVE: Save immediately for better UX
     if (autoSaveIfEnabled("document_add")) {
         cout << "✅ Document '" << filePath << "' processed into " << textChunks.size() 
@@ -344,7 +333,6 @@ bool SessionManager::addDocument(const string &filePath)
         cout << "✅ Document '" << filePath << "' processed into " << textChunks.size() 
              << " chunks (will save on session close).\n";
     }
-    
     return true;
 }
 

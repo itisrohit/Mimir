@@ -39,11 +39,9 @@ struct DocumentProcessingConfig {
 };
 
 struct EmbeddingConfig {
-    std::string model;
-    int dim;
+    std::string model; // Path to ONNX model directory
+    int dim;          // Embedding dimension (e.g., 1024 for BGE-M3)
     int batch_size;
-    std::string python_path;
-    std::string script_path;
     bool semantic_search_enabled;
 };
 

@@ -43,12 +43,10 @@ document_processing:
 
 # Embedding Configuration
 embedding:
-  model: nomic-ai/nomic-embed-text-v2-moe
-  dim: 256
+  model: models/bge-m3-onnx  # Directory containing tokenizer.onnx and model.onnx
+  dim: 1024
   batch_size: 16
-  python_path: python3
-  script_path: scripts/embedding_pipeline.py
-  semantic_search_enabled: false
+  semantic_search_enabled: true
 
 # Vector Database Configuration
 vector_db:
